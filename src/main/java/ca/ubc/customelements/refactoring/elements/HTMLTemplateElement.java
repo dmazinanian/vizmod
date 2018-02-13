@@ -3,13 +3,12 @@ package ca.ubc.customelements.refactoring.elements;
 import org.apache.html.dom.HTMLDocumentImpl;
 import org.apache.html.dom.HTMLElementImpl;
 
-public class HTMLSlotElement extends HTMLElementImpl {
-
+public class HTMLTemplateElement extends HTMLElementImpl {
+	
 	private static final long serialVersionUID = 1L;
 
-	public HTMLSlotElement(HTMLDocumentImpl document, String slotName) {
-		super(document, "slot");
-		this.setAttribute("name", slotName);
+	public HTMLTemplateElement (HTMLDocumentImpl ownerDocument) {
+		super(ownerDocument, "template");
 	}
 	
 }

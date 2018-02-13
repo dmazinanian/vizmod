@@ -16,7 +16,12 @@ import javax.xml.transform.TransformerException;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
+import javax.xml.xpath.XPathFactory;
 
+import org.apache.xerces.dom.TextImpl;
 import org.cyberneko.html.parsers.DOMParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -176,13 +181,31 @@ public final class DocumentUtil {
 		return toReturn;
 	}
 	
-	public static List<Node> bfs(Node root, boolean leaves) {
+	/*public static List<Node> bfs(Node root, boolean leaves) {
 		List<Node> toReturn = new ArrayList<>();
 		Queue<Node> queue = new LinkedList<Node>();
 		queue.add(root);
 		while (!queue.isEmpty()) {
 			Node node = queue.remove();
 			if (leaves || node.hasChildNodes()) { // Don't go for leaf nodes if not needed
+				toReturn.add(node);
+				NodeList childNodes = node.getChildNodes();
+				for (int i = 0; i < childNodes.getLength(); i++) {
+					Node child = childNodes.item(i);
+					queue.add(child);
+				}
+			}
+		}
+		return toReturn;
+	}*/
+	
+	public static List<Node> bfs(Node root, boolean onlyTextNodesWithData) {
+		List<Node> toReturn = new ArrayList<>();
+		Queue<Node> queue = new LinkedList<Node>();
+		queue.add(root);
+		while (!queue.isEmpty()) {
+			Node node = queue.remove();
+			if (!(node instanceof TextImpl) || (onlyTextNodesWithData && !"".equals(((TextImpl)node).getTextContent().trim()))) {
 				toReturn.add(node);
 				NodeList childNodes = node.getChildNodes();
 				for (int i = 0; i < childNodes.getLength(); i++) {
@@ -200,6 +223,17 @@ public final class DocumentUtil {
 			builder.append(nodeString(node));
 		}
 		return builder.toString();
+	}
+	
+	public static NodeList queryDocument(Document doc, String XPath) {
+		try {
+			XPath xPathObj = XPathFactory.newInstance().newXPath();
+			NodeList nodes = (NodeList) xPathObj.evaluate(XPath, doc, XPathConstants.NODESET);
+			return nodes;
+		} catch (XPathExpressionException e) {
+			e.printStackTrace();
+			return null;
+		}
 	}
 
 }
