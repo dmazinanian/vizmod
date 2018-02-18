@@ -81,7 +81,7 @@ public final class DocumentUtil {
 			buffer.append("/");
 		}
 
-		buffer.append(node.getNodeName());
+		buffer.append(node.getNodeName().replace("#", "\\#"));
 
 		List<Node> mySiblings = getSiblings(parent, node);
 
@@ -201,7 +201,7 @@ public final class DocumentUtil {
 	
 	public static List<Node> bfs(Node root, boolean onlyTextNodesWithData) {
 		List<Node> toReturn = new ArrayList<>();
-		Queue<Node> queue = new LinkedList<Node>();
+		Queue<Node> queue = new LinkedList<>();
 		queue.add(root);
 		while (!queue.isEmpty()) {
 			Node node = queue.remove();
@@ -228,8 +228,7 @@ public final class DocumentUtil {
 	public static NodeList queryDocument(Document doc, String XPath) {
 		try {
 			XPath xPathObj = XPathFactory.newInstance().newXPath();
-			NodeList nodes = (NodeList) xPathObj.evaluate(XPath, doc, XPathConstants.NODESET);
-			return nodes;
+			return (NodeList) xPathObj.evaluate(XPath, doc, XPathConstants.NODESET);
 		} catch (XPathExpressionException e) {
 			e.printStackTrace();
 			return null;
