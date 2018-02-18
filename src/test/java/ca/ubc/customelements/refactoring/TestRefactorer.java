@@ -1,5 +1,6 @@
 package ca.ubc.customelements.refactoring;
 
+import java.io.File;
 import java.util.*;
 
 import ca.ubc.customelements.browser.AbstractBrowser;
@@ -16,25 +17,32 @@ import ca.ubc.customelements.util.DocumentUtil;
 import ca.ubc.customelements.util.IOUtil;
 
 public class TestRefactorer {
+
+	private static final String OUTPUT_PATH = "";
 	
-	//@Test
-	public void testRefactorer() {
-		Document document = DocumentUtil.toDocument(ResourcesUtil.readResourceFileToString("TestWebsites/removed-subtree.html"));
-		List<Node> parentNodes = new ArrayList<>();
-		parentNodes.add(document.getElementById("div1"));
-		parentNodes.add(document.getElementById("div2"));
-		parentNodes.add(document.getElementById("div3"));
-		//Refactorer refactorer = new Refactorer((HTMLDocumentImpl) document, parentNodes, new HashMap<>(), "custom-element");
-		//Document newDocument = refactorer.refactor();
-		//IOUtil.writeStringToFile(DocumentUtil.getElementString(newDocument),
-		//		"/Users/davood/Google Drive/Research/Codes/custom-elements-refactorer/src/test/resources/TestWebsites/removed-subtree-refactored.html");
+	@Test
+	public void testRefactorerOnlyStructure() {
+
+		String url = "http://localhost:8080/removed-subtree.html";
+		AbstractBrowser browser = new ChromeBrowser(url, false);
+
+		List<String> parentNodeXPaths = Arrays.asList(
+				"//*[@id=\"div1\"]",
+				"//*[@id=\"div2\"]",
+				"//*[@id=\"div3\"]"
+		);
+
+		Refactorer refactorer = new Refactorer(browser, parentNodeXPaths, "custom-element");
+
+		Document newDocument = refactorer.refactor();
+
+		IOUtil.writeStringToFile(DocumentUtil.getElementString(newDocument), OUTPUT_PATH + File.separator + "removed-subtree-refactored.html");
 	}
 	
 	@Test
 	public void testRefactorerWebComponentsPage() {
-//		String url = "http://localhost:8080/removed-subtree.html";
-		String url = "http://localhost:8080/web-components.html";
 
+		String url = "http://localhost:8080/web-components.html";
 		AbstractBrowser browser = new ChromeBrowser(url, false);
 
 		List<String> parentNodeXPaths = Arrays.asList(
@@ -43,12 +51,11 @@ public class TestRefactorer {
 				"//*[@id=\"gc-wrapper\"]/DIV[2]/ARTICLE/ARTICLE/DIV[2]/SECTION[3]"
 		);
 
-		Refactorer refactorer = new Refactorer(browser, parentNodeXPaths, "custom-element");
+		Refactorer refactorer = new Refactorer(browser, parentNodeXPaths,"custom-element");
 
 		Document newDocument = refactorer.refactor();
 		String newDocumentHTML = DocumentUtil.getElementString(newDocument);
-		IOUtil.writeStringToFile(newDocumentHTML,
-				"/Users/davood/Google Drive/Research/Codes/custom-elements-refactorer/src/test/resources/TestWebsites/web-components-refactored.html");
+		IOUtil.writeStringToFile(newDocumentHTML, OUTPUT_PATH + File.separator + "web-components-refactored.html");
 
 	}
 	
