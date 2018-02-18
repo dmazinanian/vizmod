@@ -1,11 +1,11 @@
 package ca.ubc.customelements.detection;
 
+import ca.ubc.customelements.util.ResourcesUtil;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.w3c.dom.Document;
 
 import ca.ubc.customelements.util.DocumentUtil;
-import ca.ubc.customelements.util.IOUtil;
 
 
 public class DetectorTests {
@@ -19,7 +19,7 @@ public class DetectorTests {
 	
 	@Test
 	public void testDetection() {
-		String domTest = IOUtil.readResourceFileToString("web-components.html");
+		String domTest = ResourcesUtil.readResourceFileToString("web-components.html");
 		Document document = DocumentUtil.toDocument(domTest);
 		for (CloneGroup cloneGroup : detector.detect(document)) {
 			System.out.println(cloneGroup.toString());

@@ -1,16 +1,15 @@
 package ca.ubc.customelements.refactoring;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
+import ca.concordia.cssanalyser.cssmodel.declaration.Declaration;
+import ca.ubc.customelements.browser.AbstractBrowser;
+import ca.ubc.customelements.css.CSSUtil;
+import ca.ubc.customelements.util.ResourcesUtil;
 import org.apache.html.dom.HTMLDocumentImpl;
 import org.apache.html.dom.HTMLElementImpl;
-import org.apache.html.dom.HTMLScriptElementImpl;
+import org.apache.html.dom.HTMLStyleElementImpl;
 import org.apache.xerces.dom.TextImpl;
 import org.w3c.dom.Attr;
 import org.w3c.dom.DOMException;
@@ -19,13 +18,13 @@ import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.html.HTMLElement;
-import org.w3c.dom.html.HTMLScriptElement;
 
+import ca.ubc.customelements.css.CSS;
 import ca.ubc.customelements.refactoring.elements.HTMLCustomElement;
 import ca.ubc.customelements.refactoring.elements.HTMLSlotElement;
 import ca.ubc.customelements.refactoring.elements.HTMLTemplateElement;
 import ca.ubc.customelements.util.DocumentUtil;
-import ca.ubc.customelements.util.IOUtil;
+import org.w3c.dom.html.HTMLStyleElement;
 
 public class Refactorer {
 	
@@ -33,18 +32,19 @@ public class Refactorer {
 	private final HTMLDocumentImpl originalDocument;
 	private final HTMLDocumentImpl newDocument;
 	private final String customElementName;
+	private final AbstractBrowser browser;
 	
-	public Refactorer(HTMLDocumentImpl ownerDocument, List<Node> rootNodes, String customElementName) {
-		this.originalDocument = ownerDocument;
+	public Refactorer(AbstractBrowser browser, List<String> rootNodeXPaths, String customElementName) {
+		this.browser = browser;
+		this.originalDocument = (HTMLDocumentImpl) DocumentUtil.toDocument(browser.getDOM());
 		this.newDocument = (HTMLDocumentImpl) this.originalDocument.cloneNode(true);
-		this.nodes = getRootNodesInNewDocument(rootNodes);
+		this.nodes = getRootNodesInNewDocument(rootNodeXPaths);
 		this.customElementName = customElementName;
 	}
 	
-	private List<Node> getRootNodesInNewDocument(List<Node> rootNodes) {
+	private List<Node> getRootNodesInNewDocument(List<String> rootNodeXPaths) {
 		List<Node> nodes = new ArrayList<>();
-		for (Node node : rootNodes) {
-			String xpath = DocumentUtil.getXPathExpression(node);
+		for (String xpath : rootNodeXPaths) {
 			NodeList newNodes = DocumentUtil.queryDocument(newDocument, xpath);
 			if (newNodes.getLength() == 0) {
 				// TODO: Create appropriate checked exception classes
@@ -58,7 +58,7 @@ public class Refactorer {
 	}
 
 	public Document refactor() {
-		
+
 		// Body of the new document which is manipulated
 		Node newDocumentBody = newDocument.getElementsByTagName("body").item(0);
 		
@@ -69,15 +69,43 @@ public class Refactorer {
 		List<List<Node>> BFSs = new ArrayList<>();
 		
 		// Set of all nodes that are already covered in each subtree. 
-		// I use XPatsh since I'm not so sure about hashCode() and equals() for org.w3c.dom.Node's
+		// I use XPath since I'm not so sure about hashCode() and equals() for org.w3c.dom.Node's
 		List<Set<String>> coveredNodesXPaths = new ArrayList<>();
+
+		/*
+		 * Keep track of the corresponding nodes added to the <template>
+		 * i.e., for what element in the template (i.e., smallest) subtree a node in the <template> is created
+		 * And the slotted elements
+		 */
+		Map<String, Node> correspondingNewNodes = new HashMap<>();
+
+		/*
+		 * Keep track of the XPaths of the slotted nodes in the new document.
+		 * This is needed later for getting CSS after refactoring
+		 */
+		Map<String, String> slottedElementsNewXPaths = new HashMap<>();
 		
 		// Nodes that need to be removed from the new document
 		Map<String, Node> nodesToRemove = new HashMap<>(); // key is xpaths
 		
-		// Slotted nodes that will remain in the original subtree
-		// but are added to the custom element's root  
-		List<List<Node>> slottedElements = new ArrayList<>();
+		/*
+		 * Slotted nodes that will remain in the original subtree
+		 * but are added to the custom element's root.
+		 * Keys are slot names, values are nodes
+		 */
+		List<Map<String, Node>> slottedElements = new ArrayList<>();
+
+		/*
+		 * Since we will add the elements under the custom elements' Shadow DOM,
+		 * all the common CSS corresponding to the common elements should be added
+		 * to the custom element
+		 */
+		Set<CSS> cssForTemplateElements = new LinkedHashSet<>();
+
+		/*
+		 * The original CSS for the slotted elements
+		 */
+		Map<String, List<CSS>> slottedElementsOriginalCSS = new HashMap<>();
 		
 		// Template subtree. For now, the smallest one.
 		Node templateTree = getSmallestTree();
@@ -92,7 +120,7 @@ public class Refactorer {
 			
 			// Initialize empty sets/lists for all subtrees
 			coveredNodesXPaths.add(new HashSet<>());
-			slottedElements.add(new ArrayList<>());
+			slottedElements.add(new HashMap<>());
 		}
 		if (templateTreeIndex == -1) {
 			// Unlikely to happen
@@ -105,25 +133,29 @@ public class Refactorer {
 		// The id is used in JS to add the template to the shadow root for each custom element
 		templateElement.setAttribute("id", customElementName + "-template");
 		newDocumentBody.appendChild(templateElement);
-		
-		// Keep track of the corresponding nodes added to the <template>.
-		// I.e., for what element in the template subtree a node in the <template> is created
-		Map<String, Node> correspondingTemplateNodes = new HashMap<>();
 
+		/*
+		 * We start from root nodes and parameterize the whole root when necessary.
+		 * This is because some child nodes are dependent on the root node,
+		 * e.g. <tr> and <li> cannot be replaced by a custom element.
+		 */
 		// BFSs of the template subtree
 		List<Node> templateTreeBFS = BFSs.get(templateTreeIndex);
-		
 		for (int nodeIndex = 0; nodeIndex < templateTreeBFS.size(); nodeIndex++) {
 			Node templateTreeNode = templateTreeBFS.get(nodeIndex);
 			String templateTreeNodeXPath = DocumentUtil.getXPathExpression(templateTreeNode);
+
 			if (!coveredNodesXPaths.get(templateTreeIndex).contains(templateTreeNodeXPath)) {
+
 				boolean shouldParameterize = false;
-				for (int currentTreeIndex = 0; currentTreeIndex < nodes.size(); currentTreeIndex++) { 
+				for (int currentTreeIndex = 0; currentTreeIndex < nodes.size(); currentTreeIndex++) {
 					// For each subtree, check whether parameterization is necessary
-					if (currentTreeIndex != templateTreeIndex) { // Dont' compare template tree with itself
+					if (currentTreeIndex != templateTreeIndex) { // Don't compare template tree with itself
 						List<Node> currentTreeBFS = BFSs.get(currentTreeIndex);
 						Node currentTreeNode = currentTreeBFS.get(nodeIndex);
-						if (!coveredNodesXPaths.get(currentTreeIndex).contains(DocumentUtil.getXPathExpression(currentTreeNode))) {
+						String currentTreeNodeXPath = DocumentUtil.getXPathExpression(currentTreeNode);
+
+						if (!coveredNodesXPaths.get(currentTreeIndex).contains(currentTreeNodeXPath)) {
 							
 							// Condition 1: If node types are different, then parameterize
 							if (!templateTreeNode.getNodeName().equals(currentTreeNode.getNodeName())) {
@@ -173,6 +205,15 @@ public class Refactorer {
 											break; // No need to check for other subtrees
 										}
 									}
+
+									// Condition 5: CSS
+									// No need for inline CSS, it is checked in the attributes
+									List<CSS> cssForTemplateNode = getExternalAndEmbeddedCSS(templateTreeNodeXPath);
+									List<CSS> currentNodeOriginalCSS = getExternalAndEmbeddedCSS(currentTreeNodeXPath);
+									if (!cssForTemplateNode.equals(currentNodeOriginalCSS)) {
+										// TODO: What to do?!
+										System.out.println();
+									}
 								}
 							}
 						}
@@ -182,7 +223,7 @@ public class Refactorer {
 				// Parameterize, or add the same node to the template if parameterization is not needed
 				// currentParent keeps track of the hierarchy of the elements within the template
 				Node currentParent = 
-						correspondingTemplateNodes.get(DocumentUtil.getXPathExpression(templateTreeNode.getParentNode()));
+						correspondingNewNodes.get(DocumentUtil.getXPathExpression(templateTreeNode.getParentNode()));
 				if (null == currentParent) {
 					currentParent = templateElement;
 				}
@@ -191,60 +232,110 @@ public class Refactorer {
 					slotIndex++;
 					HTMLSlotElement slotElement = new HTMLSlotElement(newDocument, slotName);
 					currentParent.appendChild(slotElement);
-					// Mark children to exclude from further mapping
-					for (int currentTreeIndex = 0; currentTreeIndex < nodes.size(); currentTreeIndex++) { 
+
+					for (int currentTreeIndex = 0; currentTreeIndex < nodes.size(); currentTreeIndex++) {
 						Node currentTreeNode = BFSs.get(currentTreeIndex).get(nodeIndex);
-						List<Node> children = DocumentUtil.bfs(currentTreeNode, true);
-						for (Node child : children) {
+
+						/*
+						 * Mark all nodes rooted in the parameterized node (including the root)
+						 * to skip in further iterations.
+						 */
+						for (Node child : DocumentUtil.bfs(currentTreeNode, true)) {
 							coveredNodesXPaths.get(currentTreeIndex).add(DocumentUtil.getXPathExpression(child));
 						}
-						
-						Node currentTreeNodeToAdd;
-						if (currentTreeNode instanceof TextImpl) {
-							// TODO might change this later, according to Condition 2
-							// Text nodes cannot be parameterized with slot. They have to be inside 
-							// another node.
-							currentTreeNodeToAdd = new HTMLElementImpl(newDocument, "span");
-							currentTreeNodeToAdd.appendChild(currentTreeNode.cloneNode(true));
-						} else {
-							currentTreeNodeToAdd = currentTreeNode.cloneNode(true);
-						}
-						// Set the corresponding slot
-						((HTMLElement)currentTreeNodeToAdd).setAttribute("slot", slotName);
-						// Slotted elements should be added to the root of the custom element
-						slottedElements.get(currentTreeIndex).add(currentTreeNodeToAdd);
+
+						// Add slotted elements which would be later added to the root of the custom element
+						slottedElements.get(currentTreeIndex).put(slotName, currentTreeNode);
 					}
-					correspondingTemplateNodes.put(templateTreeNodeXPath, slotElement);
+					correspondingNewNodes.put(templateTreeNodeXPath, slotElement);
 				} else {
 					Node clonedNode = templateTreeNode.cloneNode(false);
 					currentParent.appendChild(clonedNode);
-					correspondingTemplateNodes.put(templateTreeNodeXPath, clonedNode);
+					correspondingNewNodes.put(templateTreeNodeXPath, clonedNode);
 					for (int currentTreeIndex = 0; currentTreeIndex < nodes.size(); currentTreeIndex++) { 
 						Node node = BFSs.get(currentTreeIndex).get(nodeIndex);
 						String nodeXPath = DocumentUtil.getXPathExpression(node);
 						coveredNodesXPaths.get(currentTreeIndex).add(nodeXPath);
 						nodesToRemove.put(nodeXPath, node);
 					}
+					/*
+					 * If the element is going to be added to the template, it should bring
+					 * all its CSS along. This is because it will be added to the Shadow DOM
+					 */
+					if (!(templateTreeNode instanceof TextImpl)) {
+						cssForTemplateElements.addAll(getExternalAndEmbeddedCSS(templateTreeNodeXPath));
+					}
 				}
 				
 			}
 		}
-		
+
+		/*
+		 * Add CSS to template. These are for the elements under the Shadow DOM
+		 */
+		HTMLStyleElement styleElement = new HTMLStyleElementImpl(newDocument, "style");
+		styleElement.setAttribute("type", "text/css");
+		StringBuilder cssText = new StringBuilder();
+		for (CSS css : cssForTemplateElements) {
+			cssText.append(css.getCssText()).append(System.lineSeparator());
+		}
+		styleElement.setTextContent(cssText.toString());
+		templateElement.appendChild(styleElement);
+
 		/*
 		 * Add the parameterized (slotted) nodes to the custom elements
 		 */
 		for (int i = 0; i < nodes.size(); i++) {
 			Node rootNode = nodes.get(i);
-			/*
-			 * Replace parent roots with custom element
-			 */
+			// For each root node, we will have one new custom element
 			HTMLCustomElement customElement = new HTMLCustomElement(newDocument, customElementName);
-			for (Node nodeToAddToThisRoot : slottedElements.get(i)) {
-				customElement.appendChild(nodeToAddToThisRoot); // Already deeply cloned
-			}
+			// Replace the root node with the custom element. The root node is under the custom element now
 			rootNode.getParentNode().replaceChild(customElement, rootNode);
+
+			// Adding the slotted nodes to the root of the custom element
+			for (String slotName : slottedElements.get(i).keySet()) {
+				Node originalNodeToAddToThisRoot = slottedElements.get(i).get(slotName);
+
+				Node newNodeToAdd;
+				if (originalNodeToAddToThisRoot instanceof TextImpl) {
+					// TODO might change this later, according to Condition 2
+					// Text nodes cannot be parameterized with slot. They have to be inside another node.
+					newNodeToAdd = new HTMLElementImpl(newDocument, "span");
+					newNodeToAdd.appendChild(originalNodeToAddToThisRoot.cloneNode(true));
+				} else {
+					newNodeToAdd = originalNodeToAddToThisRoot.cloneNode(true);
+				}
+				// Set the corresponding slot to the parent slotted node
+				((HTMLElement)newNodeToAdd).setAttribute("slot", slotName);
+
+				customElement.appendChild(newNodeToAdd); // Already deeply cloned
+
+				if (!(originalNodeToAddToThisRoot instanceof TextImpl)) {
+					// Get the original CSS for this slotted element with it's children
+					List<Node> originalNodeToBeAddedBFS =
+							DocumentUtil.bfs(originalNodeToAddToThisRoot, true);
+					// Also, find the mapping new nodes int custom element. They have the same index in the traversal
+					List<Node> newNodeToBeAddedBFS =
+							DocumentUtil.bfs(newNodeToAdd, true);
+					for (int originalNodeBFSIndex = 0; originalNodeBFSIndex < originalNodeToBeAddedBFS.size(); originalNodeBFSIndex++) {
+						Node originalChildNode = originalNodeToBeAddedBFS.get(originalNodeBFSIndex);
+						Node correspondingNewChildNode = newNodeToBeAddedBFS.get(originalNodeBFSIndex);
+						if (!(originalChildNode instanceof TextImpl)) {
+							String originalChildXPath = DocumentUtil.getXPathExpression(originalChildNode);
+							String newChildXPath = DocumentUtil.getXPathExpression(correspondingNewChildNode);
+							List<CSS> appliedCSS = getExternalAndEmbeddedCSS(originalChildXPath);
+							slottedElementsOriginalCSS.put(originalChildXPath, appliedCSS);
+							slottedElementsNewXPaths.put(originalChildXPath, newChildXPath);
+						}
+					}
+				}
+
+			}
+
 		}
-		
+
+		// TODO: What to do with custom element's CSS?
+
 		/*
 		 * Remove nodes:
 		 * The removal should happen in the end, since the structure of the document keeps changing,
@@ -260,22 +351,84 @@ public class Refactorer {
 				domException.printStackTrace();
 			}
 		}
-		
-		/*
-		 * Add JavaScript that defines the custom element
-		 *  
-		 */
-		HTMLScriptElement javascriptHTMLElement = new HTMLScriptElementImpl(newDocument, "script");
+
+		/*HTMLScriptElement javascriptHTMLElement = new HTMLScriptElementImpl(newDocument, "script");
 		javascriptHTMLElement.setAttribute("type", "text/javascript");
-		String customElementRegisterScript = IOUtil.readResourceFileToString("custom-element-register.js");
-		TextImpl scriptText = new TextImpl(newDocument, String.format(customElementRegisterScript, 
+		String customElementRegisterScript = ResourcesUtil.readResourceFileToString(ResourcesUtil.CUSTOM_ELEMENT_REGISTER_JS);
+		javascriptHTMLElement.setText(String.format(customElementRegisterScript,
 				customElementName,
 				customElementName + "-template"));
-		javascriptHTMLElement.appendChild(scriptText);
-		newDocumentBody.appendChild(javascriptHTMLElement);
-		
+		newDocumentBody.appendChild(javascriptHTMLElement);*/
+
+		replaceDocumentBodyInTheBrowser(newDocument);
+
+		/*
+		 * Add JavaScript that defines the custom element to the <head>
+		 * This is because adding to the body did not work (the JS will not
+		 * be evaluated)
+		 */
+		String customElementRegisterScript = ResourcesUtil.readResourceFileToString(ResourcesUtil.CUSTOM_ELEMENT_REGISTER_JS);
+		customElementRegisterScript = String.format(customElementRegisterScript, customElementName, customElementName + "-template");
+		addScriptToHeadInTheBrowser(customElementRegisterScript);
+
+		/*
+		 * Check how the new CSS for slotted elements look like
+		 * In case of difference, add as inline CSS
+		 */
+		for (String slottedElementOriginalXPath : slottedElementsNewXPaths.keySet()) {
+			String slottedElementNewXPath = slottedElementsNewXPaths.get(slottedElementOriginalXPath);
+			List<CSS> originalCSSForSlottedElement = slottedElementsOriginalCSS.get(slottedElementOriginalXPath);
+			// In the browser, now we have the new document loaded, so the new XPaths will work to get CSS
+			List<CSS> newCSSForSlottedElement = getExternalAndEmbeddedCSS(slottedElementNewXPath);
+			if (!originalCSSForSlottedElement.equals(newCSSForSlottedElement)) {
+				// Only add what is different. Apply from the original of course
+				Set<Declaration> allOriginalDeclarations = new LinkedHashSet<>();
+				Set<Declaration> allNewDeclarations = new LinkedHashSet<>();
+				Set<Declaration> declarationsToAdd = new LinkedHashSet<>();
+				for (CSS originalCSS : originalCSSForSlottedElement) {
+					allOriginalDeclarations.addAll(originalCSS.getDeclarations());
+				}
+				for (CSS newCSS : newCSSForSlottedElement) {
+					allNewDeclarations.addAll(newCSS.getDeclarations());
+				}
+				for (Declaration originalDeclaration : allOriginalDeclarations) {
+					boolean foundEquivalentDeclaration = false;
+					for (Declaration newDeclaration : allNewDeclarations) {
+						if (newDeclaration.declarationIsEquivalent(originalDeclaration)) {
+							foundEquivalentDeclaration = true;
+							break;
+						}
+					}
+					if (!foundEquivalentDeclaration) {
+						declarationsToAdd.add(originalDeclaration);
+					}
+				}
+				StringBuilder cssTextBuilder = new StringBuilder();
+				for (Declaration declarationToAdd : declarationsToAdd) {
+					cssTextBuilder.append(declarationToAdd.toString()).append(";");
+				}
+				Node slottedElementInTheNewDocument =
+						DocumentUtil.queryDocument(newDocument, slottedElementNewXPath).item(0);
+				if (slottedElementInTheNewDocument.hasAttributes() &&
+						null != slottedElementInTheNewDocument.getAttributes().getNamedItem("style")) {
+					Attr currentStyle = (Attr) slottedElementInTheNewDocument.getAttributes().getNamedItem("style");
+					cssTextBuilder = new StringBuilder(currentStyle.getValue()).append(cssTextBuilder);
+				}
+				((HTMLElement)slottedElementInTheNewDocument).setAttribute("style", cssTextBuilder.toString());
+			}
+		}
+
+		// Should do it again to make sure that the new CSS stuff are coming trough
+		replaceDocumentBodyInTheBrowser(newDocument);
+
 		return newDocument;
 		
+	}
+
+	private List<CSS> getExternalAndEmbeddedCSS(String xPath) {
+		return CSSUtil.getAppliedCSS(browser, xPath)
+				.stream().filter(css -> css.getSource() != CSS.CSSSource.INLINE_CSS)
+				.collect(Collectors.toList());
 	}
 
 	private Node getSmallestTree() {
@@ -292,6 +445,22 @@ public class Refactorer {
 			numberOfNodes += getNumberOfNodes(item);
 		}
 		return numberOfNodes;
+	}
+
+	private void replaceDocumentBodyInTheBrowser(Document document) {
+		String body = DocumentUtil.getElementString(document.getElementsByTagName("body").item(0));
+		String bodyEscaped = body.replace("\"", "\\\"").replace("\n", "\\n");
+		String s = String.format("document.getElementsByTagName(\"body\")[0].innerHTML = \"%s\"", bodyEscaped);
+		browser.evaluateJavaScript(s);
+	}
+
+	private void addScriptToHeadInTheBrowser(String code) {
+		code = code.replace("\"", "\\\"").replace("\n", "\\n");
+		String script = String.format("var script = document.createElement('script');\n" +
+						"script.text = \"%s\";\n" +
+						"document.head.appendChild(script).parentNode.removeChild( script )",
+				code);
+		browser.evaluateJavaScript(script);
 	}
 
 }
