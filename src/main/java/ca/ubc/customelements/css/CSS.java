@@ -63,6 +63,21 @@ public class CSS {
 		return new LinkedHashSet<>();
 	}
 
+
+	public Selector getSelector() {
+		try {
+			if (source == CSSSource.INLINE_CSS) {
+				return null;
+			} else {
+				StyleSheet styleSheet = CSS_PARSER.parseCSSString(cssText);
+				return new ArrayList<>((Set<Selector>)styleSheet.getAllSelectors()).get(0);
+			}
+		} catch (ParseException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
 	@Override
 	public boolean equals(Object o) {
 		if (this == o) return true;

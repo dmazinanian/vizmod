@@ -35,7 +35,11 @@ public class ChromeBrowser implements AbstractBrowser {
             session.waitDocumentReady();
         } catch (Exception ex) {
             ex.printStackTrace();
-            close();
+            try {
+                close();
+            } catch (Exception closeEx) {
+                closeEx.printStackTrace();
+            }
         }
     }
 
@@ -49,12 +53,7 @@ public class ChromeBrowser implements AbstractBrowser {
         session.navigate(url);
     }
 
-    @Override
-    public void close() {
-        if (null != factory) {
-            factory.close();
-        }
-    }
+
 
     @Override
     public String getDOM() {
@@ -66,4 +65,10 @@ public class ChromeBrowser implements AbstractBrowser {
         return session.callFunction(functionName, String.class, arguments);
     }
 
+    @Override
+    public void close() throws Exception {
+        if (null != factory) {
+            factory.close();
+        }
+    }
 }

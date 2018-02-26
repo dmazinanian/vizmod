@@ -53,7 +53,7 @@ public final class DocumentUtil {
 		return domParser.getDocument();
 	}
 	
-	public static String getXPathExpression(Node node) {
+	public final static String getXPathExpression(Node node) {
 		
 		Object xpathCache = node.getUserData(FULL_XPATH_CACHE);
 		if (xpathCache != null) {

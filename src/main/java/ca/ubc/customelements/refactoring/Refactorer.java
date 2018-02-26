@@ -3,7 +3,9 @@ package ca.ubc.customelements.refactoring;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import ca.concordia.cssanalyser.cssmodel.StyleSheet;
 import ca.concordia.cssanalyser.cssmodel.declaration.Declaration;
+import ca.concordia.cssanalyser.cssmodel.selectors.*;
 import ca.ubc.customelements.browser.AbstractBrowser;
 import ca.ubc.customelements.css.CSSUtil;
 import ca.ubc.customelements.util.ResourcesUtil;
@@ -28,7 +30,7 @@ import org.w3c.dom.html.HTMLStyleElement;
 
 public class Refactorer {
 	
-	private final List<Node> nodes; // Root of the repeated parts
+	private final List<Node> rootNodes; // Root of the repeated parts
 	private final HTMLDocumentImpl originalDocument;
 	private final HTMLDocumentImpl newDocument;
 	private final String customElementName;
@@ -38,7 +40,7 @@ public class Refactorer {
 		this.browser = browser;
 		this.originalDocument = (HTMLDocumentImpl) DocumentUtil.toDocument(browser.getDOM());
 		this.newDocument = (HTMLDocumentImpl) this.originalDocument.cloneNode(true);
-		this.nodes = getRootNodesInNewDocument(rootNodeXPaths);
+		this.rootNodes = getRootNodesInNewDocument(rootNodeXPaths);
 		this.customElementName = customElementName;
 	}
 	
@@ -100,7 +102,7 @@ public class Refactorer {
 		 * all the common CSS corresponding to the common elements should be added
 		 * to the custom element
 		 */
-		Set<CSS> cssForTemplateElements = new LinkedHashSet<>();
+		Map<String, List<CSS>> cssForTemplateElements = new LinkedHashMap<>();
 
 		/*
 		 * The original CSS for the slotted elements
@@ -110,13 +112,13 @@ public class Refactorer {
 		// Template subtree. For now, the smallest one.
 		Node templateTree = getSmallestTree();
 		int templateTreeIndex = -1;
-		for (int i = 0; i < nodes.size(); i++) {
-			if (nodes.get(i) == templateTree) {
+		for (int i = 0; i < rootNodes.size(); i++) {
+			if (rootNodes.get(i) == templateTree) {
 				templateTreeIndex = i;
 			}
 			// Leave out empty text nodes (e.g., white spaces)
 			// TODO: double check this. white spaces are sometimes important.
-			BFSs.add(DocumentUtil.bfs(nodes.get(i), true));
+			BFSs.add(DocumentUtil.bfs(rootNodes.get(i), true));
 			
 			// Initialize empty sets/lists for all subtrees
 			coveredNodesXPaths.add(new HashSet<>());
@@ -148,7 +150,7 @@ public class Refactorer {
 			if (!coveredNodesXPaths.get(templateTreeIndex).contains(templateTreeNodeXPath)) {
 
 				boolean shouldParameterize = false;
-				for (int currentTreeIndex = 0; currentTreeIndex < nodes.size(); currentTreeIndex++) {
+				for (int currentTreeIndex = 0; currentTreeIndex < rootNodes.size(); currentTreeIndex++) {
 					// For each subtree, check whether parameterization is necessary
 					if (currentTreeIndex != templateTreeIndex) { // Don't compare template tree with itself
 						List<Node> currentTreeBFS = BFSs.get(currentTreeIndex);
@@ -208,11 +210,12 @@ public class Refactorer {
 
 									// Condition 5: CSS
 									// No need for inline CSS, it is checked in the attributes
-									List<CSS> cssForTemplateNode = getExternalAndEmbeddedCSS(templateTreeNodeXPath);
-									List<CSS> currentNodeOriginalCSS = getExternalAndEmbeddedCSS(currentTreeNodeXPath);
+									List<CSS> cssForTemplateNode = CSSUtil.getExternalAndEmbeddedCSS(browser, templateTreeNodeXPath);
+									List<CSS> currentNodeOriginalCSS = CSSUtil.getExternalAndEmbeddedCSS(browser, currentTreeNodeXPath);
 									if (!cssForTemplateNode.equals(currentNodeOriginalCSS)) {
 										// TODO: What to do?!
-										System.out.println();
+										//shouldParameterize = true;
+										//break;
 									}
 								}
 							}
@@ -233,7 +236,7 @@ public class Refactorer {
 					HTMLSlotElement slotElement = new HTMLSlotElement(newDocument, slotName);
 					currentParent.appendChild(slotElement);
 
-					for (int currentTreeIndex = 0; currentTreeIndex < nodes.size(); currentTreeIndex++) {
+					for (int currentTreeIndex = 0; currentTreeIndex < rootNodes.size(); currentTreeIndex++) {
 						Node currentTreeNode = BFSs.get(currentTreeIndex).get(nodeIndex);
 
 						/*
@@ -252,7 +255,7 @@ public class Refactorer {
 					Node clonedNode = templateTreeNode.cloneNode(false);
 					currentParent.appendChild(clonedNode);
 					correspondingNewNodes.put(templateTreeNodeXPath, clonedNode);
-					for (int currentTreeIndex = 0; currentTreeIndex < nodes.size(); currentTreeIndex++) { 
+					for (int currentTreeIndex = 0; currentTreeIndex < rootNodes.size(); currentTreeIndex++) {
 						Node node = BFSs.get(currentTreeIndex).get(nodeIndex);
 						String nodeXPath = DocumentUtil.getXPathExpression(node);
 						coveredNodesXPaths.get(currentTreeIndex).add(nodeXPath);
@@ -261,9 +264,10 @@ public class Refactorer {
 					/*
 					 * If the element is going to be added to the template, it should bring
 					 * all its CSS along. This is because it will be added to the Shadow DOM
+					 * The CSS should be adapted later though
 					 */
 					if (!(templateTreeNode instanceof TextImpl)) {
-						cssForTemplateElements.addAll(getExternalAndEmbeddedCSS(templateTreeNodeXPath));
+						cssForTemplateElements.put(templateTreeNodeXPath, CSSUtil.getExternalAndEmbeddedCSS(browser, templateTreeNodeXPath));
 					}
 				}
 				
@@ -272,12 +276,17 @@ public class Refactorer {
 
 		/*
 		 * Add CSS to template. These are for the elements under the Shadow DOM
+		 * The CSS should be adapted though
 		 */
 		HTMLStyleElement styleElement = new HTMLStyleElementImpl(newDocument, "style");
 		styleElement.setAttribute("type", "text/css");
 		StringBuilder cssText = new StringBuilder();
-		for (CSS css : cssForTemplateElements) {
-			cssText.append(css.getCssText()).append(System.lineSeparator());
+		for (String templateElementXPath : cssForTemplateElements.keySet()) {
+			List<CSS> cssForThisNode = cssForTemplateElements.get(templateElementXPath);
+			Node correspondingNode = correspondingNewNodes.get(templateElementXPath);
+			//Set<Declaration> declarationsToAdd = getDeclarationsFromCSSList(cssForThisNode);
+			StyleSheet styleSheet = adaptCSS(templateElementXPath, correspondingNode, cssForThisNode);
+			cssText.append(styleSheet.toString()).append(System.lineSeparator());
 		}
 		styleElement.setTextContent(cssText.toString());
 		templateElement.appendChild(styleElement);
@@ -285,14 +294,23 @@ public class Refactorer {
 		/*
 		 * Add the parameterized (slotted) nodes to the custom elements
 		 */
-		for (int i = 0; i < nodes.size(); i++) {
-			Node rootNode = nodes.get(i);
+		for (int i = 0; i < rootNodes.size(); i++) {
+			Node rootNode = rootNodes.get(i);
 			// For each root node, we will have one new custom element
 			HTMLCustomElement customElement = new HTMLCustomElement(newDocument, customElementName);
+
+			// Add only those CSS properties that would affect the location of the custom element
+			// TODO This is very tricky.
+			/*List<CSS> cssForRootNode = cssForTemplateElements.entrySet().iterator().next().getValue();
+			Set<Declaration> allOriginalDeclarationsForRootNode = getDeclarationsFromCSSList(cssForRootNode);
+			Set<Declaration> cssDeclarationsForCustomElement = getDeclarationsForParent(allOriginalDeclarationsForRootNode);
+			addCSSDeclarationsToElementStyle(customElement, cssDeclarationsForCustomElement);
+			allOriginalDeclarationsForRootNode.removeAll(cssDeclarationsForCustomElement);*/
+
 			// Replace the root node with the custom element. The root node is under the custom element now
 			rootNode.getParentNode().replaceChild(customElement, rootNode);
 
-			// Adding the slotted nodes to the root of the custom element
+			// Adding the slotted (i.e., parameterized) nodes to the root of the custom element (light dom)
 			for (String slotName : slottedElements.get(i).keySet()) {
 				Node originalNodeToAddToThisRoot = slottedElements.get(i).get(slotName);
 
@@ -323,7 +341,7 @@ public class Refactorer {
 						if (!(originalChildNode instanceof TextImpl)) {
 							String originalChildXPath = DocumentUtil.getXPathExpression(originalChildNode);
 							String newChildXPath = DocumentUtil.getXPathExpression(correspondingNewChildNode);
-							List<CSS> appliedCSS = getExternalAndEmbeddedCSS(originalChildXPath);
+							List<CSS> appliedCSS = CSSUtil.getExternalAndEmbeddedCSS(browser, originalChildXPath);
 							slottedElementsOriginalCSS.put(originalChildXPath, appliedCSS);
 							slottedElementsNewXPaths.put(originalChildXPath, newChildXPath);
 						}
@@ -379,18 +397,12 @@ public class Refactorer {
 			String slottedElementNewXPath = slottedElementsNewXPaths.get(slottedElementOriginalXPath);
 			List<CSS> originalCSSForSlottedElement = slottedElementsOriginalCSS.get(slottedElementOriginalXPath);
 			// In the browser, now we have the new document loaded, so the new XPaths will work to get CSS
-			List<CSS> newCSSForSlottedElement = getExternalAndEmbeddedCSS(slottedElementNewXPath);
+			List<CSS> newCSSForSlottedElement = CSSUtil.getExternalAndEmbeddedCSS(browser, slottedElementNewXPath);
 			if (!originalCSSForSlottedElement.equals(newCSSForSlottedElement)) {
 				// Only add what is different. Apply from the original of course
-				Set<Declaration> allOriginalDeclarations = new LinkedHashSet<>();
-				Set<Declaration> allNewDeclarations = new LinkedHashSet<>();
+				Set<Declaration> allOriginalDeclarations = getDeclarationsFromCSSList(originalCSSForSlottedElement);
+				Set<Declaration> allNewDeclarations = getDeclarationsFromCSSList(newCSSForSlottedElement);
 				Set<Declaration> declarationsToAdd = new LinkedHashSet<>();
-				for (CSS originalCSS : originalCSSForSlottedElement) {
-					allOriginalDeclarations.addAll(originalCSS.getDeclarations());
-				}
-				for (CSS newCSS : newCSSForSlottedElement) {
-					allNewDeclarations.addAll(newCSS.getDeclarations());
-				}
 				for (Declaration originalDeclaration : allOriginalDeclarations) {
 					boolean foundEquivalentDeclaration = false;
 					for (Declaration newDeclaration : allNewDeclarations) {
@@ -403,18 +415,9 @@ public class Refactorer {
 						declarationsToAdd.add(originalDeclaration);
 					}
 				}
-				StringBuilder cssTextBuilder = new StringBuilder();
-				for (Declaration declarationToAdd : declarationsToAdd) {
-					cssTextBuilder.append(declarationToAdd.toString()).append(";");
-				}
 				Node slottedElementInTheNewDocument =
 						DocumentUtil.queryDocument(newDocument, slottedElementNewXPath).item(0);
-				if (slottedElementInTheNewDocument.hasAttributes() &&
-						null != slottedElementInTheNewDocument.getAttributes().getNamedItem("style")) {
-					Attr currentStyle = (Attr) slottedElementInTheNewDocument.getAttributes().getNamedItem("style");
-					cssTextBuilder = new StringBuilder(currentStyle.getValue()).append(cssTextBuilder);
-				}
-				((HTMLElement)slottedElementInTheNewDocument).setAttribute("style", cssTextBuilder.toString());
+				addCSSDeclarationsToElementStyle(slottedElementInTheNewDocument, declarationsToAdd);
 			}
 		}
 
@@ -425,14 +428,115 @@ public class Refactorer {
 		
 	}
 
-	private List<CSS> getExternalAndEmbeddedCSS(String xPath) {
-		return CSSUtil.getAppliedCSS(browser, xPath)
-				.stream().filter(css -> css.getSource() != CSS.CSSSource.INLINE_CSS)
-				.collect(Collectors.toList());
+	private StyleSheet adaptCSS(String originalNodeXPath, Node correspondingNode, List<CSS> cssForThisNode) {
+		StyleSheet styleSheetToReturn = new StyleSheet();
+		for (CSS css : cssForThisNode) {
+			if (css.getSource() != CSS.CSSSource.INLINE_CSS) {
+				Selector originalSelector = css.getSelector();
+				Selector adaptedSelector;
+				if (getRootNodeXPaths().contains(originalNodeXPath)) {
+					adaptedSelector = CSSUtil.newSelectorFromString(":host");
+				} else {
+ 					adaptedSelector = getAdaptedSelector(originalSelector, correspondingNode);
+				}
+				boolean selectorFound = false;
+				for (Selector existingSelector : styleSheetToReturn.getAllSelectors()) {
+					if (adaptedSelector.selectorEquals(existingSelector)) {
+						adaptedSelector = existingSelector;
+						selectorFound = true;
+						break;
+					}
+				}
+				for (Declaration declaration : originalSelector.getDeclarations()) {
+					adaptedSelector.addDeclaration(declaration);
+				}
+				if (!selectorFound) {
+					styleSheetToReturn.addSelector(adaptedSelector);
+				}
+			}
+		}
+		return styleSheetToReturn;
+	}
+
+	private Selector getAdaptedSelector(Selector originalSelector, Node correspondingNode) {
+		if (originalSelector instanceof GroupingSelector) {
+			GroupingSelector groupingSelector = (GroupingSelector) originalSelector;
+			for (BaseSelector baseSelector : groupingSelector) {
+				Selector adaptedSelector = getAdaptedBaseSelector(baseSelector, correspondingNode);
+				if (null != adaptedSelector) {
+					return adaptedSelector;
+				}
+			}
+		} else if (originalSelector instanceof BaseSelector) {
+			return getAdaptedBaseSelector((BaseSelector) originalSelector, correspondingNode);
+		}
+		return null;
+	}
+
+	private Selector getAdaptedBaseSelector(BaseSelector baseSelector, Node correspondingNode) {
+		if (CSSUtil.matches(baseSelector, correspondingNode)) {
+			return baseSelector;
+		} else {
+			if (baseSelector instanceof Combinator) {
+				Combinator combinator = (Combinator) baseSelector;
+				if (combinator instanceof DescendantSelector) {
+					DescendantSelector descendantSelector = (DescendantSelector) combinator;
+					return getAdaptedSelector(descendantSelector.getChildSelector(), correspondingNode);
+				} else if (combinator instanceof SiblingSelector) {
+					throw new RuntimeException("What should we do?");
+				}
+			} else if (baseSelector instanceof SimpleSelector) { // This sounds redundant
+				if (CSSUtil.matches(baseSelector, correspondingNode)) {
+					return baseSelector;
+				}
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * This method returns the XPath of the root nodes, but using our own XPath generator.
+	 * This is because the passed XPaths could be very different from what we generate.
+	 */
+	private Set<String> getRootNodeXPaths() {
+		Set<String> rootNodeXPaths = new LinkedHashSet<>();
+		for (Node node : rootNodes) {
+			rootNodeXPaths.add(DocumentUtil.getXPathExpression(node));
+		}
+		return rootNodeXPaths;
+	}
+
+	private Set<Declaration> getDeclarationsForParent(Set<Declaration> allOriginalDeclarationsForRootNode) {
+		return allOriginalDeclarationsForRootNode.stream().
+				filter(declaration -> CSSUtil.propertyShouldBeAppliedToParent(declaration.getProperty())).
+				collect(Collectors.toSet());
+	}
+
+	private Set<Declaration> getDeclarationsFromCSSList(List<CSS> cssForThisNode) {
+		Set<Declaration> declarationsToAdd = new HashSet<>();
+		for (CSS css : cssForThisNode) {
+            for (Declaration declaration : css.getDeclarations()) {
+                declarationsToAdd.add(declaration);
+            }
+        }
+		return declarationsToAdd;
+	}
+
+	private void addCSSDeclarationsToElementStyle(Node node, Set<Declaration> declarationsToAdd) {
+		StringBuilder cssTextBuilder = new StringBuilder();
+		for (Declaration declarationToAdd : declarationsToAdd) {
+            cssTextBuilder.append(declarationToAdd.toString()).append(";");
+        }
+		if (node.hasAttributes() &&
+                null != node.getAttributes().getNamedItem("style")) {
+            Attr currentStyle = (Attr) node.getAttributes().getNamedItem("style");
+            cssTextBuilder = new StringBuilder(currentStyle.getValue()).append(cssTextBuilder);
+        }
+		((HTMLElement)node).setAttribute("style", cssTextBuilder.toString());
 	}
 
 	private Node getSmallestTree() {
-		return Collections.min(nodes, (node1, node2) -> {
+		return Collections.min(rootNodes, (node1, node2) -> {
 			return Integer.compare(getNumberOfNodes(node1), getNumberOfNodes(node2));
 		});
 	}

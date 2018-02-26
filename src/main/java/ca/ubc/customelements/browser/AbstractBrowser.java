@@ -1,6 +1,6 @@
 package ca.ubc.customelements.browser;
 
-public interface AbstractBrowser {
+public interface AbstractBrowser extends AutoCloseable {
 
     public Object evaluateJavaScript(String js);
 
@@ -8,7 +8,6 @@ public interface AbstractBrowser {
 
     public void navigate(String url);
 
-    public void close();
 
     public String getDOM();
 

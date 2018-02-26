@@ -27,9 +27,9 @@ public class TestRefactorer {
 		AbstractBrowser browser = new ChromeBrowser(url, false);
 
 		List<String> parentNodeXPaths = Arrays.asList(
-				"//*[@id=\"div1\"]",
-				"//*[@id=\"div2\"]",
-				"//*[@id=\"div3\"]"
+				"/HTML/BODY/DIV[1]",
+				"/HTML/BODY/DIV[2]",
+				"/HTML/BODY/DIV[3]"
 		);
 
 		Refactorer refactorer = new Refactorer(browser, parentNodeXPaths, "custom-element");
@@ -58,5 +58,25 @@ public class TestRefactorer {
 		IOUtil.writeStringToFile(newDocumentHTML, OUTPUT_PATH + File.separator + "web-components-refactored.html");
 
 	}
+
+	//@Test
+    public void testRefactorerWebComponentsTest2() {
+
+        String url = "http://localhost:8080/web-components-tools.html";
+        AbstractBrowser browser = new ChromeBrowser(url, false);
+
+        List<String> parentNodeXPaths = Arrays.asList(
+                "//*[@id=\"gc-wrapper\"]/DIV[2]/ARTICLE/ARTICLE/SECTION[1]/DIV/DIV[1]",
+                "//*[@id=\"gc-wrapper\"]/DIV[2]/ARTICLE/ARTICLE/SECTION[1]/DIV/DIV[2]",
+                "//*[@id=\"gc-wrapper\"]/DIV[2]/ARTICLE/ARTICLE/SECTION[1]/DIV/DIV[3]",
+                "//*[@id=\"gc-wrapper\"]/DIV[2]/ARTICLE/ARTICLE/SECTION[1]/DIV/DIV[4]"
+        );
+
+        Refactorer refactorer = new Refactorer(browser, parentNodeXPaths,"custom-element");
+
+        Document newDocument = refactorer.refactor();
+        String newDocumentHTML = DocumentUtil.getElementString(newDocument);
+        IOUtil.writeStringToFile(newDocumentHTML, OUTPUT_PATH + File.separator + "web-components-tools-refactored.html");
+    }
 	
 }
