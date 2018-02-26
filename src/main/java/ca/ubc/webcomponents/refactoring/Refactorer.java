@@ -1,4 +1,4 @@
-package ca.ubc.customelements.refactoring;
+package ca.ubc.webcomponents.refactoring;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -6,9 +6,9 @@ import java.util.stream.Collectors;
 import ca.concordia.cssanalyser.cssmodel.StyleSheet;
 import ca.concordia.cssanalyser.cssmodel.declaration.Declaration;
 import ca.concordia.cssanalyser.cssmodel.selectors.*;
-import ca.ubc.customelements.browser.AbstractBrowser;
-import ca.ubc.customelements.css.CSSUtil;
-import ca.ubc.customelements.util.ResourcesUtil;
+import ca.ubc.webcomponents.browser.AbstractBrowser;
+import ca.ubc.webcomponents.css.CSSUtil;
+import ca.ubc.webcomponents.util.ResourcesUtil;
 import org.apache.html.dom.HTMLDocumentImpl;
 import org.apache.html.dom.HTMLElementImpl;
 import org.apache.html.dom.HTMLStyleElementImpl;
@@ -21,11 +21,11 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.w3c.dom.html.HTMLElement;
 
-import ca.ubc.customelements.css.CSS;
-import ca.ubc.customelements.refactoring.elements.HTMLCustomElement;
-import ca.ubc.customelements.refactoring.elements.HTMLSlotElement;
-import ca.ubc.customelements.refactoring.elements.HTMLTemplateElement;
-import ca.ubc.customelements.util.DocumentUtil;
+import ca.ubc.webcomponents.css.CSS;
+import ca.ubc.webcomponents.refactoring.elements.HTMLCustomElement;
+import ca.ubc.webcomponents.refactoring.elements.HTMLSlotElement;
+import ca.ubc.webcomponents.refactoring.elements.HTMLTemplateElement;
+import ca.ubc.webcomponents.util.DocumentUtil;
 import org.w3c.dom.html.HTMLStyleElement;
 
 public class Refactorer {

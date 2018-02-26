@@ -1,4 +1,4 @@
-package ca.ubc.customelements.detection;
+package ca.ubc.webcomponents.detection;
 
 import java.util.ArrayList;
 import java.util.Iterator;

@@ -1,17 +1,15 @@
-package ca.ubc.customelements.css;
+package ca.ubc.webcomponents.css;
 
 import ca.concordia.cssanalyser.cssmodel.StyleSheet;
-import ca.concordia.cssanalyser.cssmodel.declaration.Declaration;
 import ca.concordia.cssanalyser.cssmodel.selectors.BaseSelector;
 import ca.concordia.cssanalyser.cssmodel.selectors.Selector;
-import ca.concordia.cssanalyser.dom.DOMNodeWrapperList;
 import ca.concordia.cssanalyser.parser.CSSParser;
 import ca.concordia.cssanalyser.parser.CSSParserFactory;
 import ca.concordia.cssanalyser.parser.ParseException;
-import ca.ubc.customelements.browser.AbstractBrowser;
-import ca.ubc.customelements.css.CSS.CSSSource;
-import ca.ubc.customelements.util.DocumentUtil;
-import ca.ubc.customelements.util.ResourcesUtil;
+import ca.ubc.webcomponents.browser.AbstractBrowser;
+import ca.ubc.webcomponents.css.CSS.CSSSource;
+import ca.ubc.webcomponents.util.DocumentUtil;
+import ca.ubc.webcomponents.util.ResourcesUtil;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -20,7 +18,6 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
-import javax.print.DocFlavor;
 import java.util.*;
 import java.util.stream.Collectors;
 

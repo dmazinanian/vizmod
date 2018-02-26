@@ -1,4 +1,4 @@
-package ca.ubc.customelements.css;
+package ca.ubc.webcomponents.css;
 
 import ca.concordia.cssanalyser.cssmodel.StyleSheet;
 import ca.concordia.cssanalyser.cssmodel.declaration.Declaration;

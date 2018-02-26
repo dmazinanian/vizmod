@@ -1,4 +1,4 @@
-package ca.ubc.customelements.util;
+package ca.ubc.webcomponents.util;
 
 import java.io.File;
 import java.io.IOException;

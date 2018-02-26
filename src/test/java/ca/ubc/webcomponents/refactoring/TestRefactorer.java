@@ -1,26 +1,22 @@
-package ca.ubc.customelements.refactoring;
+package ca.ubc.webcomponents.refactoring;
 
 import java.io.File;
 import java.util.*;
 
-import ca.ubc.customelements.browser.AbstractBrowser;
-import ca.ubc.customelements.browser.ChromeBrowser;
-import ca.ubc.customelements.css.CSS;
-import ca.ubc.customelements.css.CSSUtil;
-import ca.ubc.customelements.util.ResourcesUtil;
-import org.apache.html.dom.HTMLDocumentImpl;
+import ca.ubc.webcomponents.browser.AbstractBrowser;
+import ca.ubc.webcomponents.browser.ChromeBrowser;
 import org.junit.Test;
 import org.w3c.dom.Document;
-import org.w3c.dom.Node;
 
-import ca.ubc.customelements.util.DocumentUtil;
-import ca.ubc.customelements.util.IOUtil;
+import ca.ubc.webcomponents.util.DocumentUtil;
+import ca.ubc.webcomponents.util.IOUtil;
 
 public class TestRefactorer {
 
-	private static final String OUTPUT_PATH = "";
+	private static final String OUTPUT_PATH =
+            "/Users/davood/Google Drive/Research/Codes/custom-elements-refactorer/src/test/resources/TestWebsites/";
 	
-	@Test
+	//@Test
 	public void testRefactorerOnlyStructure() {
 
 		String url = "http://localhost:8080/removed-subtree.html";

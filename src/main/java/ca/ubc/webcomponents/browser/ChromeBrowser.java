@@ -1,4 +1,4 @@
-package ca.ubc.customelements.browser;
+package ca.ubc.webcomponents.browser;
 
 import io.webfolder.cdp.Launcher;
 import io.webfolder.cdp.session.Session;

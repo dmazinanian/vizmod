@@ -1,11 +1,11 @@
-package ca.ubc.customelements.detection;
+package ca.ubc.webcomponents.detection;
 
-import ca.ubc.customelements.util.ResourcesUtil;
+import ca.ubc.webcomponents.util.ResourcesUtil;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.w3c.dom.Document;
 
-import ca.ubc.customelements.util.DocumentUtil;
+import ca.ubc.webcomponents.util.DocumentUtil;
 
 
 public class DetectorTests {

@@ -1,4 +1,4 @@
-package ca.ubc.customelements.detection;
+package ca.ubc.webcomponents.detection;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -8,7 +8,7 @@ import java.util.Map;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
-import ca.ubc.customelements.util.DocumentUtil;
+import ca.ubc.webcomponents.util.DocumentUtil;
 
 public class Detector {
 	

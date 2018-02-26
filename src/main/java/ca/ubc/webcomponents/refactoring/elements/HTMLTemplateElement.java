@@ -1,4 +1,4 @@
-package ca.ubc.customelements.refactoring.elements;
+package ca.ubc.webcomponents.refactoring.elements;
 
 import org.apache.html.dom.HTMLDocumentImpl;
 import org.apache.html.dom.HTMLElementImpl;

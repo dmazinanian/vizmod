@@ -1,4 +1,4 @@
-package ca.ubc.customelements.browser;
+package ca.ubc.webcomponents.browser;
 
 public interface AbstractBrowser extends AutoCloseable {
 
