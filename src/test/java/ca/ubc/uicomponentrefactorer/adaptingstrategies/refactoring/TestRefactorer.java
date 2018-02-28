@@ -3,12 +3,13 @@ package ca.ubc.uicomponentrefactorer.adaptingstrategies.refactoring;
 import java.io.File;
 import java.util.*;
 
-import ca.ubc.uicomponentrefactorer.adaptingstrategies.adaptingstrategies.webcomponents.webcomponents.WebComponentsAdaptingStrategy;
-import ca.ubc.uicomponentrefactorer.adaptingstrategies.browser.AbstractBrowser;
-import ca.ubc.uicomponentrefactorer.adaptingstrategies.browser.ChromeBrowser;
-import ca.ubc.uicomponentrefactorer.adaptingstrategies.refactorer.UIComponentRefactorer;
-import ca.ubc.uicomponentrefactorer.adaptingstrategies.util.DocumentUtil;
-import ca.ubc.uicomponentrefactorer.adaptingstrategies.util.IOUtil;
+import ca.ubc.uicomponentrefactorer.adaptingstrategies.react.ReactAdaptingStrategy;
+import ca.ubc.uicomponentrefactorer.adaptingstrategies.webcomponents.WebComponentsAdaptingStrategy;
+import ca.ubc.uicomponentrefactorer.browser.AbstractBrowser;
+import ca.ubc.uicomponentrefactorer.browser.ChromeBrowser;
+import ca.ubc.uicomponentrefactorer.refactorer.UIComponentRefactorer;
+import ca.ubc.uicomponentrefactorer.util.DocumentUtil;
+import ca.ubc.uicomponentrefactorer.util.IOUtil;
 import org.junit.Test;
 import org.w3c.dom.Document;
 
@@ -30,11 +31,11 @@ public class TestRefactorer {
 
 		UIComponentRefactorer uiComponentRefactorer = new UIComponentRefactorer(browser, parentNodeXPaths, "custom-element");
 
-		Document newDocument = uiComponentRefactorer.refactor(new WebComponentsAdaptingStrategy());
+		Document newDocument = uiComponentRefactorer.refactor(new ReactAdaptingStrategy());
 
 		IOUtil.writeStringToFile(DocumentUtil.getElementString(newDocument), OUTPUT_PATH + File.separator + "removed-subtree-refactored.html");
 	}
-	
+
 	//@Test
 	public void testRefactorerWebComponentsPage() {
 
@@ -49,7 +50,7 @@ public class TestRefactorer {
 
 		UIComponentRefactorer uiComponentRefactorer = new UIComponentRefactorer(browser, parentNodeXPaths,"custom-element");
 
-		Document newDocument = uiComponentRefactorer.refactor(new WebComponentsAdaptingStrategy());
+		Document newDocument = uiComponentRefactorer.refactor(new ReactAdaptingStrategy());
 		String newDocumentHTML = DocumentUtil.getElementString(newDocument);
 		IOUtil.writeStringToFile(newDocumentHTML, OUTPUT_PATH + File.separator + "web-components-refactored.html");
 
