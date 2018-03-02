@@ -139,10 +139,10 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
 
     private void setFieldValueViaReflection(Object object, String fieldName, Object value) {
         try {
-            Class<?> c = object.getClass();
-            Field f = getDeclaredField(c, "name");
-            f.setAccessible(true);
-            f.set(object, value);
+            Class<?> clazz = object.getClass();
+            Field declaredField = getDeclaredField(clazz, fieldName);
+            declaredField.setAccessible(true);
+            declaredField.set(object, value);
         } catch (IllegalAccessException x) {
             x.printStackTrace();
         } catch (IllegalArgumentException x) {
