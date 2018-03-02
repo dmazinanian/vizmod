@@ -4,13 +4,10 @@ import java.util.*;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 
-import ca.ubc.uicomponentrefactorer.model.UIComponent;
-import ca.ubc.uicomponentrefactorer.model.UIComponentElement;
+import ca.ubc.uicomponentrefactorer.model.*;
 import ca.ubc.uicomponentrefactorer.util.DocumentUtil;
 import ca.ubc.uicomponentrefactorer.adaptingstrategies.AdaptingStrategy;
 import ca.ubc.uicomponentrefactorer.browser.AbstractBrowser;
-import ca.ubc.uicomponentrefactorer.model.NonParameterizedUIComponentElement;
-import ca.ubc.uicomponentrefactorer.model.ParameterizedUIComponentElement;
 import org.apache.xerces.dom.TextImpl;
 import org.w3c.dom.*;
 
@@ -80,8 +77,7 @@ public class UIComponentRefactorer {
 
 			if (!coveredNodesXPaths.get(templateTreeIndex).contains(templateTreeNodeXPath)) {
 
-				boolean shouldParameterize = false;
-				boolean shouldParameterizeAttributes = false;
+				ParameterizationReason parameterizationReason = null;
 				for (int currentTreeIndex = 0; currentTreeIndex < rootNodes.size(); currentTreeIndex++) {
 					// For each subtree, check whether parameterization is necessary
 					if (currentTreeIndex != templateTreeIndex) { // Don't compare template tree with itself
@@ -92,7 +88,7 @@ public class UIComponentRefactorer {
 
 							// Condition 1: If node types are different, then parameterize
 							if (!templateTreeNode.getNodeName().equals(currentTreeNode.getNodeName())) {
-								shouldParameterize = true;
+								parameterizationReason = ParameterizationReason.DIFFERENT_TAG_NAMES;
 								break; // No need to check other subtrees
 							} else {
 								// Condition 2: If we are dealing with text nodes and the texts are different, then parameterize
@@ -101,7 +97,7 @@ public class UIComponentRefactorer {
 									TextImpl templateTreeText = (TextImpl) templateTreeNode;
 									TextImpl currentTreeText = (TextImpl) currentTreeNode;
 									if (!templateTreeText.getTextContent().equals(currentTreeText.getTextContent())) {
-										shouldParameterize = true;
+										parameterizationReason = ParameterizationReason.DIFFERENT_TEXT_NODE_VALUE;
 										break; // No need to check other subtrees
 									}
 								} else {
@@ -111,17 +107,14 @@ public class UIComponentRefactorer {
 									NodeList templateChildNodes = templateTreeNode.getChildNodes();
 									NodeList currentTreeChildNodes = currentTreeNode.getChildNodes();
 									if (templateChildNodes.getLength() != currentTreeChildNodes.getLength()) {
-										shouldParameterize = true;
+										parameterizationReason = ParameterizationReason.DIFFERENT_CHILD_COUNT;
 										break; // No need to check other subtrees
 									}
 
 									// Condition 4: If attributes are different,
 									// React can parameterize them, not Web Components.
 									if (attributesAreDifferent(templateTreeNode, currentTreeNode)) {
-										shouldParameterize = true;
-										if (adaptingStrategy.supportsAttributeParameterization()) {
-											shouldParameterizeAttributes = true;
-										}
+										parameterizationReason = ParameterizationReason.DIFFERENT_ATTRIBUTE_VALUE;
 										break;
 									}
 								}
@@ -137,8 +130,8 @@ public class UIComponentRefactorer {
 				}
 				List<String> mappedNodes = getNodesXPathsAtTheSameBFSOrder(BFSs, templateTreeNodeBFSIndex);
 				UIComponentElement newChild;
-				if (shouldParameterize) {
-					newChild = new ParameterizedUIComponentElement(currentParent, mappedNodes, templateTreeNode.getNodeName(), shouldParameterizeAttributes);
+				if (null != parameterizationReason) {
+					newChild = new ParameterizedUIComponentElement(currentParent, mappedNodes, templateTreeNode.getNodeName(), parameterizationReason);
 					for (int currentTreeIndex = 0; currentTreeIndex < rootNodes.size(); currentTreeIndex++) {
 						Node currentTreeNode = BFSs.get(currentTreeIndex).get(templateTreeNodeBFSIndex);
 						/*
@@ -151,6 +144,7 @@ public class UIComponentRefactorer {
 					}
 				} else {
 					newChild = new NonParameterizedUIComponentElement(currentParent, mappedNodes, templateTreeNode.getNodeName());
+					// Just mark the current mapped nodes to skip in further iterations
 					for (int currentTreeIndex = 0; currentTreeIndex < mappedNodes.size(); currentTreeIndex++) {
 						coveredNodesXPaths.get(currentTreeIndex).add(mappedNodes.get(currentTreeIndex));
 					}

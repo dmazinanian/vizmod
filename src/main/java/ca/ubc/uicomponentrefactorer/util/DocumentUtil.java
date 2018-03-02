@@ -135,8 +135,7 @@ public final class DocumentUtil {
 			TransformerFactory factory = TransformerFactory.newInstance();
 			Transformer transformer = factory.newTransformer();
 			transformer.setOutputProperty(OutputKeys.INDENT, "no");
-			transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION,
-					"yes");
+			transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION,"yes");
 			transformer.setOutputProperty(OutputKeys.METHOD, "html");
 			transformer.transform(source, result);
 			return stringWriter.getBuffer().toString();

@@ -27,4 +27,12 @@ public class UIComponent extends UIComponentElement {
         return templateTreeIndex;
     }
 
+    public int getNumberOfTrees() {
+        if (children.size() > 0) {
+            return children.get(0).getCorrespondingOriginalNodesXPaths().size();
+        } else {
+            return 0;
+        }
+    }
+
 }

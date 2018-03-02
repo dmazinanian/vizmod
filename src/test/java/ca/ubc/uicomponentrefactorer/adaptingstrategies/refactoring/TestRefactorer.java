@@ -16,7 +16,7 @@ import org.w3c.dom.Document;
 public class TestRefactorer {
 
 	private static final String OUTPUT_PATH = "";
-	
+
 	@Test
 	public void testRefactorerOnlyStructure() {
 
@@ -29,11 +29,13 @@ public class TestRefactorer {
 				"/HTML/BODY/DIV[3]"
 		);
 
-		UIComponentRefactorer uiComponentRefactorer = new UIComponentRefactorer(browser, parentNodeXPaths, "custom-element");
+		String componentName = "ReactComponent";
+		UIComponentRefactorer uiComponentRefactorer = new UIComponentRefactorer(browser, parentNodeXPaths, componentName);
 
 		Document newDocument = uiComponentRefactorer.refactor(new ReactAdaptingStrategy());
 
-		IOUtil.writeStringToFile(DocumentUtil.getElementString(newDocument), OUTPUT_PATH + File.separator + "removed-subtree-refactored.html");
+		String elementString = DocumentUtil.getElementString(newDocument);
+		IOUtil.writeStringToFile(elementString, OUTPUT_PATH + File.separator + "removed-subtree-refactored.html");
 	}
 
 	//@Test

@@ -4,14 +4,14 @@ import java.util.List;
 
 public class ParameterizedUIComponentElement extends UIComponentElement {
 
-    private final boolean shouldParameterizeAttributes;
+    private ParameterizationReason parameterizationReason;
 
     public ParameterizedUIComponentElement(UIComponentElement parent,
                                            List<String> correspondingOriginalNodes,
                                            String name,
-                                           boolean shouldParameterizeAttributes) {
+                                           ParameterizationReason parameterizationReason) {
         super(parent, correspondingOriginalNodes, name);
 
-        this.shouldParameterizeAttributes = shouldParameterizeAttributes;
+        this.parameterizationReason = parameterizationReason;
     }
 }
