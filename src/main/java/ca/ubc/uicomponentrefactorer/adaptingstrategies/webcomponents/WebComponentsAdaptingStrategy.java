@@ -20,7 +20,7 @@ import java.util.*;
 public class WebComponentsAdaptingStrategy extends AdaptingStrategy {
 
     private static final String CUSTOM_ELEMENT_REGISTER_JS =
-            "ca/ubc/uicomponentrefactorer/adaptingstrategies/custom-element-register.js";
+            "ca/ubc/uicomponentrefactorer/adaptingstrategies/webcomponents/custom-element-register.js";
 
     @Override
     public Document adapt(UIComponent uiComponent) {
