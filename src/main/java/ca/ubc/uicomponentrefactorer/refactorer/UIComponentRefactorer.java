@@ -131,7 +131,7 @@ public class UIComponentRefactorer {
 				List<String> mappedNodes = getNodesXPathsAtTheSameBFSOrder(BFSs, templateTreeNodeBFSIndex);
 				UIComponentElement newChild;
 				if (null != parameterizationReason) {
-					newChild = new ParameterizedUIComponentElement(currentParent, mappedNodes, templateTreeNode.getNodeName(), parameterizationReason);
+					newChild = new ParameterizedUIComponentElement(currentParent, mappedNodes, templateTreeNode.getNodeName(), parameterizationReason, templateTreeIndex);
 					for (int currentTreeIndex = 0; currentTreeIndex < rootNodes.size(); currentTreeIndex++) {
 						Node currentTreeNode = BFSs.get(currentTreeIndex).get(templateTreeNodeBFSIndex);
 						/*
@@ -143,7 +143,7 @@ public class UIComponentRefactorer {
 						}
 					}
 				} else {
-					newChild = new NonParameterizedUIComponentElement(currentParent, mappedNodes, templateTreeNode.getNodeName());
+					newChild = new NonParameterizedUIComponentElement(currentParent, mappedNodes, templateTreeNode.getNodeName(), templateTreeIndex);
 					// Just mark the current mapped nodes to skip in further iterations
 					for (int currentTreeIndex = 0; currentTreeIndex < mappedNodes.size(); currentTreeIndex++) {
 						coveredNodesXPaths.get(currentTreeIndex).add(mappedNodes.get(currentTreeIndex));

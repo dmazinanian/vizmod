@@ -10,20 +10,19 @@ import ca.ubc.uicomponentrefactorer.util.DocumentUtil;
 import ca.ubc.uicomponentrefactorer.util.ResourcesUtil;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.collections4.multimap.ArrayListValuedHashMap;
-import org.apache.html.dom.HTMLDivElementImpl;
 import org.apache.html.dom.HTMLDocumentImpl;
 import org.apache.html.dom.HTMLScriptElementImpl;
 import org.apache.xerces.dom.TextImpl;
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import org.w3c.dom.NamedNodeMap;
-import org.w3c.dom.Node;
-import org.w3c.dom.html.HTMLDivElement;
+import org.jsoup.nodes.Attribute;
+import org.jsoup.nodes.Element;
+import org.w3c.dom.*;
 import org.w3c.dom.html.HTMLElement;
 import org.w3c.dom.html.HTMLScriptElement;
 
 import java.lang.reflect.Field;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class ReactAdaptingStrategy extends AdaptingStrategy {
@@ -51,19 +50,22 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
         // Insert React JS files
         insertReactJSFilesIntoHeader(newDocument);
 
+
         MultiValuedMap<Integer, Node> parameterizedTrees = new ArrayListValuedHashMap<>();
-        // Root node of the React component.
-        HTMLDivElement reactComponentHTMLRootElement = new HTMLDivElementImpl(newDocument, "div");
-        populateReactComponent(newDocument, uiComponent, uiComponent, reactComponentHTMLRootElement, parameterizedTrees);
+
+        // Root node of the React component
+        Node reactComponentHTMLRootElement =
+                populateReactComponent(newDocument, uiComponent, uiComponent, null, parameterizedTrees);
 
         List<String> originalNodesXPaths = uiComponent.getChildren().get(0).getCorrespondingOriginalNodesXPaths();
         List<Node> originalRootNodes = originalNodesXPaths.stream()
                 .map(xpath -> DocumentUtil.queryDocument(newDocument, xpath).item(0))
                 .collect(Collectors.toList());
 
+        // Replace original nodes with custom elements
         StringBuffer parameterizedTreeStringArrayValues = new StringBuffer();
         for (int originalRootNodeIndex = 0; originalRootNodeIndex < originalNodesXPaths.size(); originalRootNodeIndex++) {
-            Node originalNode = originalRootNodes.get(originalRootNodeIndex);
+            HTMLElement originalNode = (HTMLElement) originalRootNodes.get(originalRootNodeIndex);
             HTMLElement newNode = new HTMLCustomElement(newDocument, uiComponent.getName());
             newNode.setAttribute("id", uiComponent.getName() + originalRootNodeIndex);
             originalNode.getParentNode().replaceChild(newNode, originalNode);
@@ -78,7 +80,8 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                         .append(PARAMETERIZED_TREES_JS_OBJECT_NAME + parameterizedNodeIndex)
                         .append("\"")
                         .append(":")
-                        .append(getNodeStringForReact(parameterizedTreesRootNodes.get(parameterizedNodeIndex)));
+                        .append(getNodeStringForReact(
+                                parameterizedTreesRootNodes.get(parameterizedNodeIndex), true));
                 if (parameterizedNodeIndex < parameterizedTreesRootNodes.size() - 1) {
                     parameterizedTreeStringArrayValues.append(",");
                 }
@@ -93,48 +96,64 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
         String reactComponentTemplate = ResourcesUtil.readResourceFileToString(REACT_COMPONENT_JS);
         String reactComponentText = reactComponentTemplate
                 .replace(REACT_COMPONENT_TEMPLATE_CLASS_NAME, uiComponent.getName())
-                .replace(RECT_COMPONENT_TEMPLATE_BODY, getNodeStringForReact(reactComponentHTMLRootElement))
+                .replace(RECT_COMPONENT_TEMPLATE_BODY, getNodeStringForReact(reactComponentHTMLRootElement, false))
                 .replace(REACT_COMPONENT_ATTRIBUTES, parameterizedTreeStringArrayValues.toString());
 
         HTMLScriptElement reactComponentJSElement = new HTMLScriptElementImpl(newDocument, "script");
         reactComponentJSElement.setType("text/babel");
         reactComponentJSElement.setText(reactComponentText);
-        newDocument.getElementsByTagName("head").item(0).appendChild(reactComponentJSElement);
+        newDocument.getElementsByTagName("body").item(0).appendChild(reactComponentJSElement);
 
         return newDocument;
     }
 
-    private String getNodeStringForReact(Node node) {
-        /*
-         * We have to use reflection to make tag names lower case.
-         * This is because in the HTML standard tag names are capital,
-         * while attribute names are lower case.
-         * For react, tag names are lower case.
-         * Also, we do classname -> className, so we have to force change it.
-         * Alternatively, we could parse the nodes in another way,
-         * but for now we use this hack.
-         */
-        Node rootCopy = node.cloneNode(true);
-        List<Node> nodes = DocumentUtil.dfs(rootCopy);
-        // Replace class attribute with className, since react does not allow it
-        for (Node child : nodes) {
-            if (child instanceof HTMLElement) {
-                HTMLElement htmlElement = (HTMLElement) child;
-                setFieldValueViaReflection(htmlElement,"name", htmlElement.getTagName().toLowerCase());
-                String classAttrValue = htmlElement.getAttribute("class");
-                if (null != classAttrValue && !"".equals(classAttrValue.trim())) {
-                    htmlElement.removeAttribute("class");
-                    htmlElement.setAttribute("className", classAttrValue);
-                    for (int i = 0; i < htmlElement.getAttributes().getLength(); i++) {
-                        Node attr = htmlElement.getAttributes().item(i);
-                        if ("classname".equals(attr.getNodeName())) {
-                            setFieldValueViaReflection(attr,"name", "className");
-                        }
-                    }
-                }
-            }
+    private String getNodeStringForReact(Node node, boolean wrapTextNodes) {
+
+        // If there is only one node and it is a text node, wrap it in a <span>
+        if (!node.hasChildNodes() && wrapTextNodes && node instanceof TextImpl) {
+            TextImpl textNode = (TextImpl) node;
+            String wholeText = textNode.getWholeText();
+            textNode.setTextContent(wholeText);
+            HTMLCustomElement spanElement =
+                    new HTMLCustomElement((HTMLDocumentImpl) node.getOwnerDocument(), "span");
+            spanElement.appendChild(textNode);
+            node = spanElement;
         }
-        return DocumentUtil.getElementString(rootCopy);
+
+        return  DocumentUtil.getElementXHTMLString(node, ReactAdaptingStrategy::renameAttributesForReact);
+    }
+
+    public static Element renameAttributesForReact(Element element) {
+        Set<String> attributesToRemove = new HashSet<>();
+        // Replace class attribute with className, since react does not allow it
+        // Also. fix other attributes
+        for (Attribute attribute : element.attributes()) {
+            String key = attribute.getKey();
+            String value = attribute.getValue();
+            switch (key) {
+                case "class":
+                    element.attributes().put("className", value);
+                    attributesToRemove.add(key);
+                    break;
+                case "itemprop":
+                    element.attributes().put("itemProp", value);
+                    attributesToRemove.add(key);
+                    break;
+                case "srcset":
+                    element.attributes().put("srcSet", value);
+                    attributesToRemove.add(key);
+                    break;
+            }
+            //setFieldValueViaReflection(attr, "name", "className");
+        }
+
+        attributesToRemove.forEach(attributeKey -> element.attributes().remove(attributeKey));
+
+        for (Element child : element.children()) {
+            renameAttributesForReact(child);
+        }
+
+        return element;
     }
 
     private void setFieldValueViaReflection(Object object, String fieldName, Object value) {
@@ -162,42 +181,47 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
     }
 
 
-    private MultiValuedMap<Integer, Node> populateReactComponent(HTMLDocumentImpl newDocument,
-                                                                 UIComponent uiComponent,
-                                                                 UIComponentElement rootUIComponentElement,
-                                                                 Node htmlElementRootNode,
-                                                                 MultiValuedMap<Integer, Node> parameterizedTress) {
+    private Node populateReactComponent(HTMLDocumentImpl newDocument,
+                                        UIComponent uiComponent,
+                                        UIComponentElement rootUIComponentElement,
+                                        Node htmlElementRootNode,
+                                        MultiValuedMap<Integer, Node> parameterizedTress) {
 
         for (UIComponentElement uiComponentChild : rootUIComponentElement.getChildren()) {
 
-            Node newNode = null;
-            List<String> correspondingOriginalNodes = uiComponentChild.getCorrespondingOriginalNodesXPaths();
+            Node unifyingNode = null;
+            List<String> correspondingOriginalNodesXPaths = uiComponentChild.getCorrespondingOriginalNodesXPaths();
             if (uiComponentChild instanceof NonParameterizedUIComponentElement) {
-                String templateTreeNodeXPath = correspondingOriginalNodes.get(uiComponent.getTemplateTreeIndex());
+                String templateTreeNodeXPath = correspondingOriginalNodesXPaths.get(uiComponent.getTemplateTreeIndex());
                 Node originalTemplateNode = DocumentUtil.queryDocument(newDocument, templateTreeNodeXPath).item(0);
-                newNode = originalTemplateNode.cloneNode(false);
+                unifyingNode = originalTemplateNode.cloneNode(false);
             } else if (uiComponentChild instanceof ParameterizedUIComponentElement) {
-                // We add a { } in the React component. The
+                // We add a { } in the React component.
                 String newNodeText = "{this.props.%s%s}";
                 if (parameterizedTress.keys().size() == 0) {
                     newNodeText = String.format(newNodeText, PARAMETERIZED_TREES_JS_OBJECT_NAME, 0);
                 } else {
                     newNodeText = String.format(newNodeText, PARAMETERIZED_TREES_JS_OBJECT_NAME, parameterizedTress.get(0).size());
                 }
-                newNode = new TextImpl(newDocument, newNodeText);
-                for (int i = 0; i < correspondingOriginalNodes.size(); i++) {
-                    String originalNodeXPath = correspondingOriginalNodes.get(i);
+                unifyingNode = new TextImpl(newDocument, newNodeText);
+                for (int i = 0; i < correspondingOriginalNodesXPaths.size(); i++) {
+                    String originalNodeXPath = correspondingOriginalNodesXPaths.get(i);
                     Node originalNode = DocumentUtil.queryDocument(newDocument, originalNodeXPath).item(0);
                     parameterizedTress.put(i, originalNode);
                 }
             }
-            if (null != newNode) {
-                htmlElementRootNode.appendChild(newNode);
-                populateReactComponent(newDocument, uiComponent, uiComponentChild, newNode, parameterizedTress);
+            if (null != unifyingNode) {
+                if (null == htmlElementRootNode) {
+                    htmlElementRootNode = unifyingNode;
+                } else {
+                    htmlElementRootNode.appendChild(unifyingNode);
+                }
+                populateReactComponent(newDocument, uiComponent, uiComponentChild, unifyingNode, parameterizedTress);
             }
+
         }
 
-        return parameterizedTress;
+        return htmlElementRootNode;
 
     }
 

@@ -104,7 +104,7 @@ public class WebComponentsAdaptingStrategy extends AdaptingStrategy {
                 Node slottedElement = DocumentUtil.queryDocument(newDocument, slottedElementXPath).item(0).cloneNode(true);
                 if (slottedElement instanceof TextImpl) { // Wrap a different text into a span
                     TextImpl textElement = (TextImpl) slottedElement;
-                    slottedElement = new HTMLScriptElementImpl(newDocument,  "span");
+                    slottedElement = new HTMLCustomElement(newDocument,  "span");
                     slottedElement.setTextContent(textElement.getTextContent());
                 }
                 ((HTMLElement) slottedElement).setAttribute("slot", slotName);

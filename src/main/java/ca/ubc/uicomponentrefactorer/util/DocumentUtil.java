@@ -1,51 +1,49 @@
 package ca.ubc.uicomponentrefactorer.util;
 
-import java.io.IOException;
-import java.io.StringReader;
-import java.io.StringWriter;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Queue;
+import org.apache.xerces.dom.TextImpl;
+import org.cyberneko.html.parsers.DOMParser;
+import org.jsoup.Jsoup;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.w3c.dom.CharacterData;
+import org.w3c.dom.*;
+import org.w3c.dom.html.HTMLElement;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.Result;
-import javax.xml.transform.Source;
-import javax.xml.transform.Transformer;
-import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.*;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
-
-import org.apache.xerces.dom.TextImpl;
-import org.cyberneko.html.parsers.DOMParser;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.w3c.dom.CharacterData;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
-import org.xml.sax.InputSource;
-import org.xml.sax.SAXException;
+import java.io.IOException;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.util.*;
+import java.util.function.Consumer;
 
 
 public final class DocumentUtil {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(DocumentUtil.class);
+
+    private static final Set<String> VOID_TAGS_SET = new HashSet<>(Arrays.asList(
+            "IMG",
+            "BR",
+            "INPUT",
+            "SCRIPT"
+            ));
 	
 	private static final String FULL_XPATH_CACHE = "FULL_XPATH_CACHE";
 
-	public static Document toDocument(String domTest) {
+	public static Document toDocument(String html) {
 		DOMParser domParser = new DOMParser();
 		try {
 			domParser.setProperty("http://cyberneko.org/html/properties/names/elems", "match");
 			domParser.setFeature("http://xml.org/sax/features/namespaces", false);
-			domParser.parse(new InputSource(new StringReader(domTest)));
+			domParser.parse(new InputSource(new StringReader(html)));
 		} catch (SAXException | IOException e) {
 			e.printStackTrace();
 			return null;
@@ -127,9 +125,9 @@ public final class DocumentUtil {
 		}
 	}
 	
-	public static String getElementString(Node dom) {
+	public static String getElementString(Node node) {
 		try {
-			Source source = new DOMSource(dom);
+			Source source = new DOMSource(node);
 			StringWriter stringWriter = new StringWriter();
 			Result result = new StreamResult(stringWriter);
 			TransformerFactory factory = TransformerFactory.newInstance();
@@ -143,6 +141,27 @@ public final class DocumentUtil {
 			e.printStackTrace();
 			return "";
 		}
+	}
+
+	public static String getElementXHTMLString(Node node) {
+		return getElementXHTMLString(node, null);
+	}
+
+	public static String getElementXHTMLString(Node node, Consumer<org.jsoup.nodes.Element> elementActionConsumer) {
+		String html = getElementString(node); // Serialize to HTML
+		final org.jsoup.nodes.Document document = Jsoup.parseBodyFragment(html); // Parse to XML
+		document.outputSettings().syntax(org.jsoup.nodes.Document.OutputSettings.Syntax.xml);
+		org.jsoup.nodes.Element element;
+		if (node instanceof Document) {
+			element = document;
+		} else {
+			element = document.select("body > " + node.getNodeName().toLowerCase())
+							.first(); // The result is a complete DOM, only get the element within the body
+		}
+		if (null != elementActionConsumer) {
+			elementActionConsumer.accept(element);
+		}
+		return element.toString();
 	}
 	
 	public static String newick(Node root, boolean leaves) {
@@ -233,5 +252,9 @@ public final class DocumentUtil {
 			return null;
 		}
 	}
+
+    public static boolean isVoidTag(HTMLElement htmlElement) {
+        return VOID_TAGS_SET.contains(htmlElement.getNodeName());
+    }
 
 }

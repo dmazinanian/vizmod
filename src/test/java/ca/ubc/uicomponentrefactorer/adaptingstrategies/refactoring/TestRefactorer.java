@@ -29,12 +29,12 @@ public class TestRefactorer {
 				"/HTML/BODY/DIV[3]"
 		);
 
-		String componentName = "ReactComponent";
-		UIComponentRefactorer uiComponentRefactorer = new UIComponentRefactorer(browser, parentNodeXPaths, componentName);
+		UIComponentRefactorer uiComponentRefactorer =
+				new UIComponentRefactorer(browser, parentNodeXPaths, "ReactComponent");
 
 		Document newDocument = uiComponentRefactorer.refactor(new ReactAdaptingStrategy());
 
-		String elementString = DocumentUtil.getElementString(newDocument);
+		String elementString = DocumentUtil.getElementXHTMLString(newDocument);
 		IOUtil.writeStringToFile(elementString, OUTPUT_PATH + File.separator + "removed-subtree-refactored.html");
 	}
 
@@ -50,10 +50,11 @@ public class TestRefactorer {
 				"//*[@id=\"gc-wrapper\"]/DIV[2]/ARTICLE/ARTICLE/DIV[2]/SECTION[3]"
 		);
 
-		UIComponentRefactorer uiComponentRefactorer = new UIComponentRefactorer(browser, parentNodeXPaths,"custom-element");
+		UIComponentRefactorer uiComponentRefactorer =
+                new UIComponentRefactorer(browser, parentNodeXPaths, "ReactComponent");
 
 		Document newDocument = uiComponentRefactorer.refactor(new ReactAdaptingStrategy());
-		String newDocumentHTML = DocumentUtil.getElementString(newDocument);
+		String newDocumentHTML =  DocumentUtil.getElementXHTMLString(newDocument);
 		IOUtil.writeStringToFile(newDocumentHTML, OUTPUT_PATH + File.separator + "web-components-refactored.html");
 
 	}
@@ -71,10 +72,11 @@ public class TestRefactorer {
                 "//*[@id=\"gc-wrapper\"]/DIV[2]/ARTICLE/ARTICLE/SECTION[1]/DIV/DIV[4]"
         );
 
-        UIComponentRefactorer uiComponentRefactorer = new UIComponentRefactorer(browser, parentNodeXPaths,"custom-element");
+        UIComponentRefactorer uiComponentRefactorer =
+				new UIComponentRefactorer(browser, parentNodeXPaths,"ReactComponent");
 
-        Document newDocument = uiComponentRefactorer.refactor(new WebComponentsAdaptingStrategy());
-        String newDocumentHTML = DocumentUtil.getElementString(newDocument);
+        Document newDocument = uiComponentRefactorer.refactor(new ReactAdaptingStrategy());
+        String newDocumentHTML =  DocumentUtil.getElementXHTMLString(newDocument);
         IOUtil.writeStringToFile(newDocumentHTML, OUTPUT_PATH + File.separator + "web-components-tools-refactored.html");
     }
 	

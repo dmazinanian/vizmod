@@ -1,18 +1,26 @@
 package ca.ubc.uicomponentrefactorer.model;
 
+import ca.ubc.uicomponentrefactorer.adaptingstrategies.AdaptingStrategy;
+
+import javax.annotation.Nullable;
 import java.util.*;
 
-public class UIComponentElement {
+public abstract class UIComponentElement {
 
     protected final UIComponentElement parent;
     protected final String name;
     protected final Map<String, AttributeValue> attributes = new HashMap<>();
     protected final List<UIComponentElement> children = new ArrayList<>();
     protected final List<String> correspondingOriginalNodesXPaths;
+    protected final int templateTreeIndex;
 
-    public UIComponentElement(UIComponentElement parent, List<String> correspondingOriginalNodeXPaths, String name) {
+    public UIComponentElement(UIComponentElement parent,
+                              List<String> correspondingOriginalNodeXPaths,
+                              String name,
+                              int templateTreeIndex) {
         this.parent = parent;
         this.name = name;
+        this.templateTreeIndex = templateTreeIndex;
         if (null != correspondingOriginalNodeXPaths) {
             this.correspondingOriginalNodesXPaths = new ArrayList<>(correspondingOriginalNodeXPaths);
         } else {
@@ -20,8 +28,8 @@ public class UIComponentElement {
         }
     }
 
-    public UIComponentElement(List<String> correspondingOriginalNodeXPaths, String name) {
-        this(null, correspondingOriginalNodeXPaths, name);
+    public UIComponentElement(List<String> correspondingOriginalNodeXPaths, String name, int templateTreeIndex) {
+        this(null, correspondingOriginalNodeXPaths, name, templateTreeIndex);
     }
 
     public UIComponentElement getParent() {
@@ -89,4 +97,12 @@ public class UIComponentElement {
         }
         return hashCode;
     }
+
+    /**
+     * Returns the XPath of the single element that can include the entire repetitive subtree
+     * @return Null if the current {@link UIComponent} does not have any children,
+     * or it has more than one children in the first root
+     */
+    @Nullable
+    public abstract String getUnifyingNodeXPath(AdaptingStrategy adaptingStrategy);
 }

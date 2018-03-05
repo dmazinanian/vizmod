@@ -8,4 +8,5 @@ public abstract class AdaptingStrategy {
     public abstract Document adapt(UIComponent uiComponent);
 
     public abstract boolean supportsAttributeParameterization();
+
 }
