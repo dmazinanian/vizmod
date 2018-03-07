@@ -148,20 +148,24 @@ public final class DocumentUtil {
 	}
 
 	public static String getElementXHTMLString(Node node, Consumer<org.jsoup.nodes.Element> elementActionConsumer) {
-		String html = getElementString(node); // Serialize to HTML
-		final org.jsoup.nodes.Document document = Jsoup.parseBodyFragment(html); // Parse to XML
-		document.outputSettings().syntax(org.jsoup.nodes.Document.OutputSettings.Syntax.xml);
-		org.jsoup.nodes.Element element;
-		if (node instanceof Document) {
-			element = document;
+		if (node instanceof TextImpl) {
+			return node.getTextContent();
 		} else {
-			element = document.select("body > " + node.getNodeName().toLowerCase())
-							.first(); // The result is a complete DOM, only get the element within the body
+			String html = getElementString(node); // Serialize to HTML
+			final org.jsoup.nodes.Document document = Jsoup.parseBodyFragment(html); // Parse to XML
+			document.outputSettings().syntax(org.jsoup.nodes.Document.OutputSettings.Syntax.xml);
+			org.jsoup.nodes.Element element;
+			if (node instanceof Document) {
+				element = document;
+			} else {
+				// The result is a complete DOM, only get the element within the body
+				element = document.select("body > " + node.getNodeName().toLowerCase()).first();
+			}
+			if (null != elementActionConsumer) {
+				elementActionConsumer.accept(element);
+			}
+			return element.toString();
 		}
-		if (null != elementActionConsumer) {
-			elementActionConsumer.accept(element);
-		}
-		return element.toString();
 	}
 	
 	public static String newick(Node root, boolean leaves) {

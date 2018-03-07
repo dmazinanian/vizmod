@@ -17,5 +17,5 @@ public enum ParameterizationReason {
     /**
      * Tags are the same, number of children are the same, attribute values are different
      */
-    DIFFERENT_ATTRIBUTE_VALUE
+    DIFFERENT_ATTRIBUTE_VALUES
 }

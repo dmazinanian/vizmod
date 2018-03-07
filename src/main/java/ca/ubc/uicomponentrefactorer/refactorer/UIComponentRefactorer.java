@@ -96,7 +96,7 @@ public class UIComponentRefactorer {
 									// TODO We might want to parameterize the parent, let's say if we have <span>
 									TextImpl templateTreeText = (TextImpl) templateTreeNode;
 									TextImpl currentTreeText = (TextImpl) currentTreeNode;
-									if (!templateTreeText.getTextContent().equals(currentTreeText.getTextContent())) {
+									if (!templateTreeText.getWholeText().equals(currentTreeText.getWholeText())) {
 										parameterizationReason = ParameterizationReason.DIFFERENT_TEXT_NODE_VALUE;
 										break; // No need to check other subtrees
 									}
@@ -106,6 +106,7 @@ public class UIComponentRefactorer {
 									// Condition 3: If the children's sizes are different, then parameterize
 									NodeList templateChildNodes = templateTreeNode.getChildNodes();
 									NodeList currentTreeChildNodes = currentTreeNode.getChildNodes();
+									// TODO WARNING: We should check for meaningful children I guess :|
 									if (templateChildNodes.getLength() != currentTreeChildNodes.getLength()) {
 										parameterizationReason = ParameterizationReason.DIFFERENT_CHILD_COUNT;
 										break; // No need to check other subtrees
@@ -114,7 +115,7 @@ public class UIComponentRefactorer {
 									// Condition 4: If attributes are different,
 									// React can parameterize them, not Web Components.
 									if (attributesAreDifferent(templateTreeNode, currentTreeNode)) {
-										parameterizationReason = ParameterizationReason.DIFFERENT_ATTRIBUTE_VALUE;
+										parameterizationReason = ParameterizationReason.DIFFERENT_ATTRIBUTE_VALUES;
 										break;
 									}
 								}
@@ -131,19 +132,27 @@ public class UIComponentRefactorer {
 				List<String> mappedNodes = getNodesXPathsAtTheSameBFSOrder(BFSs, templateTreeNodeBFSIndex);
 				UIComponentElement newChild;
 				if (null != parameterizationReason) {
-					newChild = new ParameterizedUIComponentElement(currentParent, mappedNodes, templateTreeNode.getNodeName(), parameterizationReason, templateTreeIndex);
+					newChild = new ParameterizedUIComponentElement(currentParent, mappedNodes,
+							templateTreeNode.getNodeName(), parameterizationReason, templateTreeIndex);
 					for (int currentTreeIndex = 0; currentTreeIndex < rootNodes.size(); currentTreeIndex++) {
 						Node currentTreeNode = BFSs.get(currentTreeIndex).get(templateTreeNodeBFSIndex);
-						/*
-						 * Mark all nodes rooted in the parameterized node (including the root)
-						 * to skip in further iterations.
-						 */
-						for (Node child : DocumentUtil.bfs(currentTreeNode, true)) {
-							coveredNodesXPaths.get(currentTreeIndex).add(DocumentUtil.getXPathExpression(child));
+						if (parameterizationReason == ParameterizationReason.DIFFERENT_ATTRIBUTE_VALUES &&
+								adaptingStrategy.supportsAttributeParameterization()) {
+							// Only mark this node to be excluded, not the children, since children can be different
+							coveredNodesXPaths.get(currentTreeIndex).add(mappedNodes.get(currentTreeIndex));
+						} else {
+							/*
+							 * Mark all nodes rooted in the parameterized node (including the root)
+							 * to skip in further iterations.
+							 */
+							for (Node child : DocumentUtil.bfs(currentTreeNode, true)) {
+								coveredNodesXPaths.get(currentTreeIndex).add(DocumentUtil.getXPathExpression(child));
+							}
 						}
 					}
 				} else {
-					newChild = new NonParameterizedUIComponentElement(currentParent, mappedNodes, templateTreeNode.getNodeName(), templateTreeIndex);
+					newChild = new NonParameterizedUIComponentElement(currentParent, mappedNodes,
+							templateTreeNode.getNodeName(), templateTreeIndex);
 					// Just mark the current mapped nodes to skip in further iterations
 					for (int currentTreeIndex = 0; currentTreeIndex < mappedNodes.size(); currentTreeIndex++) {
 						coveredNodesXPaths.get(currentTreeIndex).add(mappedNodes.get(currentTreeIndex));

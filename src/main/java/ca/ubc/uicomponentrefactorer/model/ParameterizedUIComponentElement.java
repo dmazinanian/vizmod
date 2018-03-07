@@ -32,7 +32,7 @@ public class ParameterizedUIComponentElement extends UIComponentElement {
                 return null;
             case DIFFERENT_CHILD_COUNT:
                 return correspondingOriginalNodesXPaths.get(templateTreeIndex);
-            case DIFFERENT_ATTRIBUTE_VALUE:
+            case DIFFERENT_ATTRIBUTE_VALUES:
                 if (adaptingStrategy.supportsAttributeParameterization()) {
                     return correspondingOriginalNodesXPaths.get(templateTreeIndex);
                 } else {
