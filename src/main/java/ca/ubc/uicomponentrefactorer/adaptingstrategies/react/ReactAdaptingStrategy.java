@@ -19,18 +19,23 @@ import org.w3c.dom.Node;
 import org.w3c.dom.html.HTMLElement;
 import org.w3c.dom.html.HTMLScriptElement;
 
-import java.lang.reflect.Field;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class ReactAdaptingStrategy extends AdaptingStrategy {
 
+    /*
+     * Necessary JS files for React, to be added to the <head>
+     */
     private static final String[] REACT_JS_FILES = new String[] {
             "https://unpkg.com/react@16/umd/react.development.js",
             "https://unpkg.com/react-dom@16/umd/react-dom.development.js",
             "https://unpkg.com/babel-standalone@6.15.0/babel.min.js"
     };
 
+    /**
+     * Attribute names for replacement for React. See renameAttributesForReact
+     */
     private static final Map<String, String> REACT_EQUIVALENCE_ATTRIBUTE_NAMES = new HashMap<>();
     {
         REACT_EQUIVALENCE_ATTRIBUTE_NAMES.put("class", "className");
@@ -40,11 +45,12 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
         REACT_EQUIVALENCE_ATTRIBUTE_NAMES.put("itemtype", "itemType");
     }
 
-    private static final String PARAMETERIZED_TREES_JS_OBJECT_NAME = "parameterizedTrees";
-
+    /**
+     * The template for the react component
+     */
     private static final String REACT_COMPONENT_JS =
             "ca/ubc/uicomponentrefactorer/adaptingstrategies/react/react-component-template.jsx";
-
+    private static final String PARAMETERIZED_TREES_JS_OBJECT_NAME = "parameterizedTrees";
     private static final String REACT_COMPONENT_TEMPLATE_CLASS_NAME = "${componentClassName}";
     private static final String RECT_COMPONENT_TEMPLATE_BODY = "${componentBody}";
     private static final String REACT_COMPONENT_ATTRIBUTES = "${componentParameterizedTrees}";
@@ -174,10 +180,15 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
         }
     }
 
+    /**
+     * JSX does not allow certain attribute property names (e.g., class), and they should be replaced
+     * by correct ones.
+     * <b>Warning</b> The original order of elements changes
+     * @param element JSoup element for which attribute names should be changed
+     * @return
+     */
     private static Element renameAttributesForReact(Element element) {
         Set<String> attributesToRemove = new HashSet<>();
-        // Replace class attribute with className, since react does not allow it
-        // Also. fix other attributes
         for (Attribute attribute : element.attributes()) {
             String key = attribute.getKey();
             String value = attribute.getValue();
@@ -194,36 +205,24 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
         return element;
     }
 
-    private void setFieldValueViaReflection(Object object, String fieldName, Object value) {
-        try {
-            Class<?> clazz = object.getClass();
-            Field declaredField = getDeclaredField(clazz, fieldName);
-            declaredField.setAccessible(true);
-            declaredField.set(object, value);
-        } catch (IllegalAccessException x) {
-            x.printStackTrace();
-        } catch (IllegalArgumentException x) {
-            x.printStackTrace();
-        }
-    }
-
-    private Field getDeclaredField(Class<?> c, String name) {
-        Field f = null;
-        do {
-            try {
-                f = c.getDeclaredField("name");
-            } catch (NoSuchFieldException nsf) {}
-            c = c.getSuperclass();
-        } while (f == null && c != null);
-        return f;
-    }
-
-
+    /**
+     * Populates the structure of the react component.
+     * In addition, computes and fills some collections needed
+     * @param newDocument The new {@link HTMLDocumentImpl} where the {@link UIComponent} will be added
+     * @param uiComponent The {@link UIComponent} for which the structure is created
+     * @param rootUIComponentElement The root of the current {@link UIComponent}
+     * @param htmlElementRootNode The HTML node to which the unified children of rootUIComponentElement  will be added
+     * @param parameterizedTrees The MultiValuedMap containing the original nodes being parameterized.
+     *                           The key is the tree index, the value is a collection with the original nodes.
+     * @param reactComponentElementsWithParameterizedAttributes Elements appearing in the body of the component
+     *                                                          for which some attributes are parameterized.
+     * @return The root HTML node of the React component's body
+     */
     private Node populateReactComponent(HTMLDocumentImpl newDocument,
                                         UIComponent uiComponent,
                                         UIComponentElement rootUIComponentElement,
                                         Node htmlElementRootNode,
-                                        MultiValuedMap<Integer, Node> parameterizedTress,
+                                        MultiValuedMap<Integer, Node> parameterizedTrees,
                                         List<Node> reactComponentElementsWithParameterizedAttributes) {
 
         for (UIComponentElement uiComponentChild : rootUIComponentElement.getChildren()) {
@@ -250,10 +249,10 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                         // For each varying attribute, make one parameter in the corresponding elements
                         List<String> valuesForThisKey = (List<String>)attributeDifferences.get(attributeKey);
                         // Parameterized attributes/tags are put into { } s
-                        String parameterName = getParameterName(parameterizedTress);
+                        String parameterName = getParameterName(parameterizedTrees);
                         for (int i = 0; i < correspondingOriginalNodesXPaths.size(); i++) { // The same as valuesForThisKey.size()
                             TextImpl placeHolderForValue = new TextImpl(newDocument, escapeValueForJSObject(valuesForThisKey.get(i)));
-                            parameterizedTress.put(i, placeHolderForValue);
+                            parameterizedTrees.put(i, placeHolderForValue);
                         }
                         // The corresponding attribute would be a parameter
                         // We are sure about the casting, because of DIFFERENT_ATTRIBUTE_VALUES
@@ -262,7 +261,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                     reactComponentElementsWithParameterizedAttributes.add(unifyingNode);
                 } else {
                     // The entire node (and its subtree) should be parameterized
-                    String parameterName = getParameterName(parameterizedTress);
+                    String parameterName = getParameterName(parameterizedTrees);
                     unifyingNode = new TextImpl(newDocument, parameterName);
                     for (int i = 0; i < correspondingOriginalNodesXPaths.size(); i++) {
                         String originalNodeXPath = correspondingOriginalNodesXPaths.get(i);
@@ -271,7 +270,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                         if (newNode instanceof TextImpl) {
                             newNode = wrapTextInSpan((TextImpl) newNode);
                         }
-                        parameterizedTress.put(i, newNode);
+                        parameterizedTrees.put(i, newNode);
                     }
                 }
             }
@@ -282,9 +281,9 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                     htmlElementRootNode.appendChild(unifyingNode);
                 }
                 populateReactComponent(newDocument, uiComponent, uiComponentChild,
-                        unifyingNode, parameterizedTress, reactComponentElementsWithParameterizedAttributes);
+                        unifyingNode, parameterizedTrees, reactComponentElementsWithParameterizedAttributes);
             } else {
-                System.out.println("What happened?");
+                System.out.println("The unifying node is null. I'm not sure how this can happen.");
             }
 
         }
@@ -293,11 +292,20 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
 
     }
 
+    /**
+     * Given a string, escapes it so that it can be used as a value in a JS object literal.
+     * Replaces " with \", and \n with \\n
+     * @param value The string to escape
+     * @return The escaped string
+     */
     private String escapeValueForJSObject(String value) {
         return value.replace("\"", "\\\"")
                     .replace("\n", "\\\n");
     }
 
+    /**
+     * Gets the name of the parameter used in React component, given the parameterized nodes so far
+      */
     private String getParameterName(MultiValuedMap<Integer, Node> parameterizedTress) {
         String parameterName = "{this.props.%s%s}";
         if (parameterizedTress.keySet().size() == 0) {
@@ -308,6 +316,14 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
         return parameterName;
     }
 
+    /**
+     * Given the XPath of the original nodes and the corresponding document, This method returns the difference in
+     * attributes.
+     * @param originalNodesXPaths The XPaths of the original nodes.
+     * @param document The document to which the original nodes belong.
+     * @return A {@link MultiValuedMap}, wehre the key is the attribute name, and the value is a collection where
+     *         each item is the value of the attribute, sorted based on the tree indices
+     */
     private MultiValuedMap<String, String> getAttributeDifferences(List<String> originalNodesXPaths, Document document) {
 
         MultiValuedMap<String, String> attributeDifferences = new ArrayListValuedHashMap<>();
@@ -317,6 +333,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                 .map(node -> (HTMLElement) node)
                 .collect(Collectors.toList());
 
+        // Get the union of all attribute names. This should be tested for all nodes
         Set<String> attributeKeysUnion = getAttributesUnion(originalNodes);
 
         for (String attributeKey : attributeKeysUnion) {
@@ -344,6 +361,11 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
         return attributeDifferences;
     }
 
+    /**
+     * Returns the union of the attribute names across the given elements
+     * @param originalElements The elments of interest
+     * @return The union of the attribute names
+     */
     private Set<String> getAttributesUnion(List<HTMLElement> originalElements) {
         return originalElements.stream()
                 .map(element -> {
@@ -359,6 +381,11 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                 .collect(Collectors.toSet());
     }
 
+    /**
+     * Wraps a given {@link TextImpl} in a <span></span>
+     * @param textNode The given {@link TextImpl}
+     * @return The <span></span> node with the {@link TextImpl} as its child
+     */
     private Node wrapTextInSpan(TextImpl textNode) {
         String wholeText = textNode.getWholeText();
         textNode.setTextContent(wholeText);
@@ -368,19 +395,23 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
         return  spanElement;
     }
 
-    @Override
-    public boolean supportsAttributeParameterization() {
-        return true;
-    }
+    /**
+     * Attaches the JS scripts to the <head></head> of the given document
+     * @param document Document to which the new JS files should be attached
+     */
+    private void insertReactJSFilesIntoHeader(HTMLDocumentImpl document) {
 
-    private void insertReactJSFilesIntoHeader(HTMLDocumentImpl newDocument) {
-
-        Node headElement = newDocument.getElementsByTagName("head").item(0);
+        Node headElement = document.getElementsByTagName("head").item(0);
         for (String jsFile : REACT_JS_FILES) {
-            HTMLScriptElement jsScript = new HTMLScriptElementImpl(newDocument, "script");
+            HTMLScriptElement jsScript = new HTMLScriptElementImpl(document, "script");
             jsScript.setSrc(jsFile);
             headElement.appendChild(jsScript);
         }
 
+    }
+
+    @Override
+    public boolean supportsAttributeParameterization() {
+        return true;
     }
 }

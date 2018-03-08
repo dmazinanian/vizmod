@@ -30,7 +30,6 @@
 			<artifactId>jsoup</artifactId>
 			<version>1.11.2</version>
 		</dependency>
-
 		<dependency>
 			<groupId>io.webfolder</groupId>
 			<artifactId>cdp4j</artifactId>
