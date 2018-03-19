@@ -24,6 +24,10 @@ public class CloneGroup {
 	public String getKey() {
 		return this.key;
 	}
+
+	public List<Node> getRootNodes() {
+		return roots;
+	}
 	
 	public void addClone(Node root) {
 		this.roots.add(root);
@@ -41,9 +45,5 @@ public class CloneGroup {
 			}
 		}
 		return builder.toString();
-	}
-
-	public void addClones(List<Node> list) {
-		this.roots.addAll(list);
 	}
 }

@@ -1,29 +1,86 @@
 package ca.ubc.uicomponentrefactorer.detection;
 
+import ca.ubc.uicomponentrefactorer.browser.AbstractBrowser;
+import ca.ubc.uicomponentrefactorer.browser.ChromeBrowser;
+import ca.ubc.uicomponentrefactorer.detection.visualhash.PHash;
 import ca.ubc.uicomponentrefactorer.util.DocumentUtil;
-import ca.ubc.uicomponentrefactorer.util.ResourcesUtil;
+import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.w3c.dom.Document;
+import org.w3c.dom.Node;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+
+import static org.junit.Assert.fail;
 
 
 public class DetectorTests {
 	
 	private static Detector detector;
+	private static AbstractBrowser browser;
 	
 	@BeforeClass
 	public static void setUp() {
-		detector = new Detector();
+
+		browser = new ChromeBrowser("http://localhost:8080/web-components.html", true);
+
+		detector = new Detector(browser, new PHash());
+		
 	}
-	
+
+	@AfterClass
+	public static void tearDown() throws Exception {
+		browser.close();
+	}
+
 	@Test
 	public void testDetection() {
-		String domTest = ResourcesUtil.readResourceFileToString("web-components.html");
-		Document document = DocumentUtil.toDocument(domTest);
-		for (CloneGroup cloneGroup : detector.detect(document)) {
-			System.out.println(cloneGroup.toString());
-			System.out.println("---");
+
+		List<CloneGroup> cloneGroups = detector.detect(3);
+
+		String outputFolder = "";
+
+		for (CloneGroup cloneGroup : cloneGroups) {
+			File folder = new File(outputFolder + cloneGroup.getKey());
+			folder.mkdir();
+
+			for (Node node : cloneGroup.getRootNodes()) {
+				String xPathExpression = DocumentUtil.getXPathExpression(node);
+				BufferedImage elementScreenshot = browser.takeScreenshot(xPathExpression);
+				try {
+
+					File outFile = new File(folder.getAbsolutePath() + File.separator +
+							xPathExpression.replace("/", "_"));
+					ImageIO.write(elementScreenshot, "png", outFile);
+
+				} catch (IOException ioEx) {
+					ioEx.printStackTrace();
+				}
+			}
+
+		}
+
+	}
+
+	//@Test
+	public void testScreenshot() {
+
+		BufferedImage elementScreenshot =
+				browser.takeScreenshot("//*[@id=\"gc-wrapper\"]/div[2]/article/article/div[2]/section[1]");
+
+		try {
+
+			ImageIO.write(elementScreenshot, "png", new File("element.png"));
+
+			ImageIO.write(browser.takeScreenshot(), "png", new File("full-page.png"));
+
+		} catch (IOException ioex) {
+			ioex.printStackTrace();
+			fail();
 		}
 	}
-	
 }

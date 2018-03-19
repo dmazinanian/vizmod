@@ -261,4 +261,23 @@ public final class DocumentUtil {
         return VOID_TAGS_SET.contains(htmlElement.getNodeName());
     }
 
+	public static List<Node> getParents(Node node) {
+		List<Node> parents = new ArrayList<>();
+		while (null != node) {
+			node = node.getParentNode();
+			if (null != node) {
+				parents.add(node);
+			}
+		}
+		return parents;
+	}
+
+	public static int getSubtreeHeight(Node node) {
+		int maxHeight = -1;
+		NodeList childNodes = node.getChildNodes();
+		for (int i = 0; i < childNodes.getLength(); i++) {
+			maxHeight = Math.max(maxHeight, getSubtreeHeight(childNodes.item(i)));
+		}
+		return maxHeight + 1;
+	}
 }
