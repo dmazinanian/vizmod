@@ -1,8 +1,10 @@
 package ca.ubc.vizmod.adaptingstrategies.react;
 
+import ca.concordia.cssanalyser.cssmodel.declaration.Declaration;
 import ca.ubc.vizmod.adaptingstrategies.AdaptingStrategy;
 import ca.ubc.vizmod.adaptingstrategies.webcomponents.HTMLCustomElement;
 import ca.ubc.vizmod.model.*;
+import ca.ubc.vizmod.model.css.CSSUtil;
 import ca.ubc.vizmod.util.DocumentUtil;
 import ca.ubc.vizmod.util.ResourcesUtil;
 import org.apache.commons.collections4.MultiValuedMap;
@@ -63,20 +65,21 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
         // Insert React JS files
         insertReactJSFilesIntoHeader(newDocument);
 
+        // This is the list of all elements within the React component where one attribute has JS object as value
+        // This list is later used to remove extra double quotes from such values
+        List<Node> reactComponentElementsWithObjectValuedAttributes = new ArrayList<>();
 
+        // The map from the index of the root node to the list of elements which are parameterized
         MultiValuedMap<Integer, Node> parameterizedTrees = new ArrayListValuedHashMap<>();
-
-        List<Node> reactComponentElementsWithParameterizedAttributes = new ArrayList<>();
-
+        
         Node reactComponentHTMLRootElement =
                 populateReactComponent(newDocument, uiComponent, uiComponent,
-                        null, parameterizedTrees, reactComponentElementsWithParameterizedAttributes);
+                        null, parameterizedTrees, reactComponentElementsWithObjectValuedAttributes);
 
         List<String> originalNodesXPaths = uiComponent.getChildren().get(0).getCorrespondingOriginalNodesXPaths();
         List<Node> originalRootNodes = originalNodesXPaths.stream()
                 .map(xpath -> DocumentUtil.queryDocument(newDocument, xpath).item(0))
                 .collect(Collectors.toList());
-
         /*
          * Object containing the parameterized values for the nodes. This will replace
          * the corresponding placeholder in the component's JS file.
@@ -120,7 +123,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
         String reactComponentBody = getNodeStringForReact(reactComponentHTMLRootElement, false);
         // Replace double quotes in parameterized attributes with
         reactComponentBody = removeExtraDoubleQuotes(reactComponentBody,
-                reactComponentElementsWithParameterizedAttributes);
+                reactComponentElementsWithObjectValuedAttributes);
         // Replace placeholders in the template
         String reactComponentText = reactComponentTemplate
                 .replace(REACT_COMPONENT_TEMPLATE_CLASS_NAME, uiComponent.getName())
@@ -134,6 +137,62 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
 
         return newDocument;
     }
+
+    /**
+     * Given a node, this method replaces the value of the style attribute in this element
+     * and all its subtree nodes with JS objects, since react only accepts inline CSS using JS objects
+     * @param root Root of the subtree where the changes should be done
+     * @return The affected elements
+     */
+    private List<Node> replaceInlineStylesWithJSObjects(HTMLElement root) {
+        List<Node> affectedNodes = new ArrayList<>();
+        for (Node node : DocumentUtil.dfs(root)) {
+            if (node instanceof HTMLElement) {
+                HTMLElement htmlElement = (HTMLElement) node;
+                NamedNodeMap attributes = htmlElement.getAttributes();
+                Attr styleAttribute = (Attr)attributes.getNamedItem("style");
+                if (null != styleAttribute) {
+                    String value = styleAttribute.getValue();
+                    if (!value.trim().startsWith("{") && !value.trim().endsWith("}")) {
+                        htmlElement.setAttribute("style",
+                                "{" + convertStyleToJSObject(value) + "}");
+                        affectedNodes.add(node);
+                    }
+                }
+            }
+        }
+        return affectedNodes;
+    }
+
+    /**
+     * Given the value for a style attribute (i.e., inline css), this method returns JS object
+     * appropriate to be used with React
+     * @param inlineCSS
+     * @return
+     */
+    private String convertStyleToJSObject(String inlineCSS) {
+        StringBuilder toReturn = new StringBuilder();
+        toReturn.append("{");
+        List<Declaration> cssDeclarations = CSSUtil.getCSSDeclarationsFromInlineStyle(inlineCSS);
+
+        for (Iterator<Declaration> iterator = cssDeclarations.iterator(); iterator.hasNext(); ) {
+            Declaration cssDeclaration = iterator.next();
+            String cssPropertyJSName = CSSUtil.getCSSPropertyJSName(cssDeclaration);
+            toReturn.append(cssPropertyJSName)
+                    .append(":")
+                    .append("'")
+                    .append(escapeValueForJSObject(CSSUtil.getValueString(cssDeclaration)))
+                    .append("'");
+            if (iterator.hasNext()) {
+                 toReturn.append(",");
+            }
+
+        }
+        toReturn.append("}");
+        return toReturn.toString();
+    }
+
+
 
     /**
      * When parameterizing attributes for react components, after serialization, we should remove double quotes
@@ -171,7 +230,13 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
     private String getNodeStringForReact(Node node, boolean quoteStringNodes) {
         if (quoteStringNodes && node instanceof TextImpl) {
             TextImpl textNode = (TextImpl) node;
-            return String.format("\"%s\"", textNode.getWholeText());
+            String trimmedContent = textNode.getTextContent().trim();
+            if (trimmedContent.startsWith("{") && trimmedContent.endsWith("}")) {
+                // JS Object Literals do not need double quotes
+               return textNode.getWholeText();
+           } else {
+               return String.format("\"%s\"", textNode.getWholeText());
+           }
         } else {
             String elementXHTMLString =
                     DocumentUtil.getElementXHTMLString(node, ReactAdaptingStrategy::renameAttributesForReact);
@@ -214,8 +279,10 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
      * @param htmlElementRootNode The HTML node to which the unified children of rootUIComponentElement  will be added
      * @param parameterizedTrees The MultiValuedMap containing the original nodes being parameterized.
      *                           The key is the tree index, the value is a collection with the original nodes.
-     * @param reactComponentElementsWithParameterizedAttributes Elements appearing in the body of the component
-     *                                                          for which some attributes are parameterized.
+     * @param reactComponentElementsWithJSObjectAttributeValues Elements appearing in the body of the component
+     *                                                          for which some attributes are parameterized will appear
+     *                                                          as JS objects. For these, extra double quotes should be
+     *                                                          removed from the final values.
      * @return The root HTML node of the React component's body
      */
     private Node populateReactComponent(HTMLDocumentImpl newDocument,
@@ -223,7 +290,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                                         UIComponentElement rootUIComponentElement,
                                         Node htmlElementRootNode,
                                         MultiValuedMap<Integer, Node> parameterizedTrees,
-                                        List<Node> reactComponentElementsWithParameterizedAttributes) {
+                                        List<Node> reactComponentElementsWithJSObjectAttributeValues) {
 
         for (UIComponentElement uiComponentChild : rootUIComponentElement.getChildren()) {
 
@@ -233,6 +300,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
             Node originalTemplateNode = DocumentUtil.queryDocument(newDocument, templateTreeNodeXPath).item(0);
 
             if (uiComponentChild instanceof NonParameterizedUIComponentElement) {
+                // The node will directly go to the template
                 unifyingNode = originalTemplateNode.cloneNode(false);
             } else if (uiComponentChild instanceof ParameterizedUIComponentElement) {
                 ParameterizedUIComponentElement parameterizedUIComponentElement =
@@ -251,14 +319,19 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                         // Parameterized attributes/tags are put into { } s
                         String parameterName = getParameterName(parameterizedTrees);
                         for (int i = 0; i < correspondingOriginalNodesXPaths.size(); i++) { // The same as valuesForThisKey.size()
-                            TextImpl placeHolderForValue = new TextImpl(newDocument, escapeValueForJSObject(valuesForThisKey.get(i)));
+                            String valueForThisKeyAndTree = valuesForThisKey.get(i);
+                            // JSX does not work with inline styles in the text format, should be converted to JS objects
+                            if ("style".equals(attributeKey)) {
+                                valueForThisKeyAndTree = convertStyleToJSObject(valueForThisKeyAndTree);
+                            }
+                            TextImpl placeHolderForValue = new TextImpl(newDocument, escapeValueForJSObject(valueForThisKeyAndTree));
                             parameterizedTrees.put(i, placeHolderForValue);
                         }
                         // The corresponding attribute would be a parameter
                         // We are sure about the casting, because of DIFFERENT_ATTRIBUTE_VALUES
                         ((HTMLElement) unifyingNode).setAttribute(attributeKey, parameterName);
                     }
-                    reactComponentElementsWithParameterizedAttributes.add(unifyingNode);
+                    reactComponentElementsWithJSObjectAttributeValues.add(unifyingNode);
                 } else {
                     // The entire node (and its subtree) should be parameterized
                     String parameterName = getParameterName(parameterizedTrees);
@@ -275,13 +348,17 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                 }
             }
             if (null != unifyingNode) {
+                // JSX does not work with inline styles in the text format, should be converted to JS objects
+                if (unifyingNode instanceof HTMLElement) {
+                    replaceInlineStylesWithJSObjects((HTMLElement) unifyingNode);
+                }
                 if (null == htmlElementRootNode) {
                     htmlElementRootNode = unifyingNode; // Just the first time
                 } else {
                     htmlElementRootNode.appendChild(unifyingNode);
                 }
                 populateReactComponent(newDocument, uiComponent, uiComponentChild,
-                        unifyingNode, parameterizedTrees, reactComponentElementsWithParameterizedAttributes);
+                        unifyingNode, parameterizedTrees, reactComponentElementsWithJSObjectAttributeValues);
             } else {
                 System.out.println("The unifying node is null. I'm not sure how this can happen.");
             }

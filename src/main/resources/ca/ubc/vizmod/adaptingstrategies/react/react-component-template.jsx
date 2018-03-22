@@ -6,17 +6,17 @@ class ${componentClassName} extends React.Component {
 
 //export default ${componentClassName};
 
-let dynamicProps = [${componentParameterizedTrees}]
+let dynamicProps${componentClassName} = [${componentParameterizedTrees}]
 
-for (let i = 0; i < dynamicProps.length; i++) {
+for (let i = 0; i < dynamicProps${componentClassName}.length; i++) {
     ReactDOM.render(
-        <ReactComponent {...dynamicProps[i]} />,
+        <${componentClassName} {...dynamicProps${componentClassName}[i]} />,
         document.getElementById('${componentClassName}' + i)
     );
 }
 
 // Replace custom elements with original root nodes
-for (let i = 0; i < dynamicProps.length; i++) {
+for (let i = 0; i < dynamicProps${componentClassName}.length; i++) {
     let customElement = document.getElementById('${componentClassName}' + i);
     customElement.parentNode.replaceChild(customElement.childNodes[0], customElement);
 }
