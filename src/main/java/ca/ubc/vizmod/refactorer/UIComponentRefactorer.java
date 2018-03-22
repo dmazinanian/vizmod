@@ -55,7 +55,7 @@ public class UIComponentRefactorer {
 		for (int i = 0; i < rootNodes.size(); i++) {
 			// Leave out empty text nodes (e.g., white spaces)
 			// TODO: double check this. white spaces are sometimes important.
-			BFSs.add(DocumentUtil.bfs(rootNodes.get(i), true));
+			BFSs.add(DocumentUtil.bfs(rootNodes.get(i), false));
 
 			// Initialize empty sets/lists for all subtrees
 			coveredNodesXPaths.add(new HashSet<>());
@@ -145,7 +145,7 @@ public class UIComponentRefactorer {
 							 * Mark all nodes rooted in the parameterized node (including the root)
 							 * to skip in further iterations.
 							 */
-							for (Node child : DocumentUtil.bfs(currentTreeNode, true)) {
+							for (Node child : DocumentUtil.bfs(currentTreeNode, false)) {
 								coveredNodesXPaths.get(currentTreeIndex).add(DocumentUtil.getXPathExpression(child));
 							}
 						}

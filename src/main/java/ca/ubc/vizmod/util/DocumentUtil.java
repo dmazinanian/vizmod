@@ -227,7 +227,7 @@ public final class DocumentUtil {
 		queue.add(root);
 		while (!queue.isEmpty()) {
 			Node node = queue.remove();
-			if (!(node instanceof TextImpl) || (onlyTextNodesWithData && !"".equals(((TextImpl)node).getTextContent().trim()))) {
+			if (!(node instanceof TextImpl) || (!onlyTextNodesWithData || !"".equals(((TextImpl)node).getTextContent().trim()))) {
 				toReturn.add(node);
 				NodeList childNodes = node.getChildNodes();
 				for (int i = 0; i < childNodes.getLength(); i++) {
