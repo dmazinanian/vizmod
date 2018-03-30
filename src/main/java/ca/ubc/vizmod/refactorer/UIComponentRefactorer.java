@@ -4,7 +4,6 @@ import ca.ubc.vizmod.adaptingstrategies.AdaptingStrategy;
 import ca.ubc.vizmod.browser.AbstractBrowser;
 import ca.ubc.vizmod.model.*;
 import ca.ubc.vizmod.util.DocumentUtil;
-import org.apache.xerces.dom.TextImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.*;
@@ -119,10 +118,10 @@ public class UIComponentRefactorer {
 								break; // No need to check other subtrees
 							} else {
 								// Condition 2: If we are dealing with text nodes and the texts are different, then parameterize
-								if (templateTreeNode instanceof TextImpl) {
+								if (templateTreeNode instanceof Text) {
 									// TODO We might want to parameterize the parent, let's say if we have <span>
-									TextImpl templateTreeText = (TextImpl) templateTreeNode;
-									TextImpl currentTreeText = (TextImpl) currentTreeNode;
+									Text templateTreeText = (Text) templateTreeNode;
+									Text currentTreeText = (Text) currentTreeNode;
 									if (!templateTreeText.getWholeText().equals(currentTreeText.getWholeText())) {
 										parameterizationReason = ParameterizationReason.DIFFERENT_TEXT_NODE_VALUE;
 										break; // No need to check other subtrees
