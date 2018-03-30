@@ -79,7 +79,7 @@ public final class DocumentUtil {
 			buffer.append("/");
 		}
 
-		buffer.append(node.getNodeName().replace("#text", "text()"));
+		buffer.append(getNodeName(node));
 
 		List<Node> mySiblings = getSiblings(parent, node);
 
@@ -96,7 +96,17 @@ public final class DocumentUtil {
 		node.setUserData(FULL_XPATH_CACHE, xPath, null);
 		return xPath;
 	}
-	
+
+	private static String getNodeName(Node node) {
+		if (node instanceof Text) {
+			return "text()";
+		} else if (node instanceof Comment) {
+			return "comment()";
+		} else {
+			return node.getNodeName();
+		}
+	}
+
 	public static List<Node> getSiblings(Node parent, Node element) {
 		List<Node> result = new ArrayList<>();
 		NodeList list = parent.getChildNodes();

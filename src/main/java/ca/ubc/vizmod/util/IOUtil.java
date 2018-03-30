@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 
 public class IOUtil {
 
@@ -21,4 +22,12 @@ public class IOUtil {
 		}
 	}
 
+    public static String readStringFromFile(String path) {
+		try {
+			return new String(Files.readAllBytes(new File(path).toPath()), "UTF-8");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return "";
+	}
 }

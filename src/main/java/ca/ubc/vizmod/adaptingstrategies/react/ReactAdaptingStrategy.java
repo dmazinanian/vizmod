@@ -341,7 +341,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                         Node originalNode = DocumentUtil.queryDocument(newDocument, originalNodeXPath).item(0);
                         Node newNode = originalNode.cloneNode(true);
                         if (newNode instanceof TextImpl) {
-                            newNode = wrapTextInSpan((TextImpl) newNode);
+                            newNode = escapeTextNodeForReactObject((TextImpl) newNode);
                         }
                         parameterizedTrees.put(i, newNode);
                     }
@@ -378,6 +378,15 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
     private String escapeValueForJSObject(String value) {
         return value.replace("\"", "\\\"")
                     .replace("\n", "\\\n");
+    }
+
+    /**
+     * Escapes a text node's value to put in JS object
+     */
+    private Node escapeTextNodeForReactObject(TextImpl textNode) {
+        String wholeText = textNode.getWholeText();
+        textNode.setTextContent(escapeValueForJSObject(wholeText));
+        return  textNode;
     }
 
     /**
@@ -440,7 +449,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
 
     /**
      * Returns the union of the attribute names across the given elements
-     * @param originalElements The elments of interest
+     * @param originalElements The elements of interest
      * @return The union of the attribute names
      */
     private Set<String> getAttributesUnion(List<HTMLElement> originalElements) {
@@ -456,20 +465,6 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                 })
                 .flatMap(Set::stream)
                 .collect(Collectors.toSet());
-    }
-
-    /**
-     * Wraps a given {@link TextImpl} in a <span></span>
-     * @param textNode The given {@link TextImpl}
-     * @return The <span></span> node with the {@link TextImpl} as its child
-     */
-    private Node wrapTextInSpan(TextImpl textNode) {
-        String wholeText = textNode.getWholeText();
-        textNode.setTextContent(wholeText);
-        HTMLCustomElement spanElement =
-                new HTMLCustomElement((HTMLDocumentImpl) textNode.getOwnerDocument(), "span");
-        spanElement.appendChild(textNode);
-        return  spanElement;
     }
 
     /**

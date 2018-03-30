@@ -172,8 +172,8 @@ public class ChromeBrowser implements AbstractBrowser {
 
     @Override
     public void close() throws Exception {
-        if (null != factory) {
-            factory.close();
+        if (null != session) {
+            session.close();
         }
     }
 
@@ -220,5 +220,9 @@ public class ChromeBrowser implements AbstractBrowser {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static AbstractBrowser getForFile(String inputFilePath, boolean headless) {
+        return new ChromeBrowser("file:///" + inputFilePath, headless);
     }
 }

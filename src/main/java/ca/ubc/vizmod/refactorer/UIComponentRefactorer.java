@@ -1,19 +1,22 @@
 package ca.ubc.vizmod.refactorer;
 
+import ca.ubc.vizmod.adaptingstrategies.AdaptingStrategy;
+import ca.ubc.vizmod.browser.AbstractBrowser;
+import ca.ubc.vizmod.model.*;
+import ca.ubc.vizmod.util.DocumentUtil;
+import org.apache.xerces.dom.TextImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.w3c.dom.*;
+import org.w3c.dom.html.HTMLElement;
+
 import java.util.*;
 import java.util.function.ToDoubleFunction;
 import java.util.stream.Collectors;
 
-import ca.ubc.vizmod.model.*;
-import ca.ubc.vizmod.util.DocumentUtil;
-import ca.ubc.vizmod.adaptingstrategies.AdaptingStrategy;
-import ca.ubc.vizmod.browser.AbstractBrowser;
-import org.apache.xerces.dom.TextImpl;
-import org.w3c.dom.*;
-
-import org.w3c.dom.html.HTMLElement;
-
 public class UIComponentRefactorer {
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(UIComponentRefactorer.class);
 	
 	private final Document originalDocument;
 	private final AbstractBrowser browser;
@@ -22,15 +25,39 @@ public class UIComponentRefactorer {
 	private final String componentName;
 
 	public UIComponentRefactorer(AbstractBrowser browser, List<String> rootNodeXPaths, String componentName) {
+
 		this.browser = browser;
 		this.originalDocument = DocumentUtil.toDocument(browser.getDOM());
-		this.rootNodes = rootNodeXPaths.stream()
-				.map(xpath -> DocumentUtil.queryDocument(originalDocument, xpath).item(0))
-				.collect(Collectors.toList());
-		this.rootNodeXPaths = rootNodes.stream()
-				.map(node -> DocumentUtil.getXPathExpression(node))
-				.collect(Collectors.toList());
 		this.componentName = componentName;
+
+		this.rootNodes = new ArrayList<>();
+		for (String xpath : rootNodeXPaths) {
+			NodeList nodes = DocumentUtil.queryDocument(originalDocument, xpath);
+			switch (nodes.getLength()) {
+				case 0:
+					LOGGER.warn("No HTML node found under {}", xpath);
+					break;
+				case 1:
+					this.rootNodes.add(nodes.item(0));
+					break;
+				default:
+					LOGGER.warn("Multiple HTML elements found under {}, this is skipped", xpath);
+					break;
+
+			}
+		}
+
+		if (this.rootNodes.size() < 2) {
+			throw new RuntimeException("Not enough HTML nodes were found. Cannot continue");
+		} else if (this.rootNodes.size() != rootNodeXPaths.size()) {
+			LOGGER.warn("The number of HTML nodes found ({}) is less than the number of the given XPaths {}" +
+					"Continuing with the found HTML nodes", this.rootNodes.size(), rootNodeXPaths.size());
+		}
+
+		this.rootNodeXPaths = rootNodes.stream()
+					.map(node -> DocumentUtil.getXPathExpression(node))
+					.collect(Collectors.toList());
+
 	}
 
 	public Document refactor(AdaptingStrategy adaptingStrategy) {
@@ -175,19 +202,22 @@ public class UIComponentRefactorer {
 	}
 
 	private boolean attributesAreDifferent(Node templateTreeNode, Node otherTreeNode) {
-		HTMLElement templateTreeElement = (HTMLElement) templateTreeNode;
-		HTMLElement currentTreeElement = (HTMLElement) otherTreeNode;
-		NamedNodeMap templateTreeElementAttrs = templateTreeElement.getAttributes();
-		NamedNodeMap currentTreeElementAttrs = currentTreeElement.getAttributes();
-		if (templateTreeElementAttrs.getLength() != currentTreeElementAttrs.getLength()) {
-			return true;
-		} else {
-			for (int attrIndex = 0; attrIndex < templateTreeElementAttrs.getLength(); attrIndex++) {
-				Attr templateTreeAttr = (Attr) templateTreeElementAttrs.item(attrIndex);
-				Attr currentTreeAttribute = (Attr) currentTreeElementAttrs.getNamedItem(templateTreeAttr.getName());
-				if (currentTreeAttribute == null ||
-						!templateTreeAttr.getValue().trim().equals(currentTreeAttribute.getValue().trim())) {
-					return true;
+		if (templateTreeNode instanceof HTMLElement &&
+				otherTreeNode instanceof HTMLElement) {
+			HTMLElement templateTreeElement = (HTMLElement) templateTreeNode;
+			HTMLElement currentTreeElement = (HTMLElement) otherTreeNode;
+			NamedNodeMap templateTreeElementAttrs = templateTreeElement.getAttributes();
+			NamedNodeMap currentTreeElementAttrs = currentTreeElement.getAttributes();
+			if (templateTreeElementAttrs.getLength() != currentTreeElementAttrs.getLength()) {
+				return true;
+			} else {
+				for (int attrIndex = 0; attrIndex < templateTreeElementAttrs.getLength(); attrIndex++) {
+					Attr templateTreeAttr = (Attr) templateTreeElementAttrs.item(attrIndex);
+					Attr currentTreeAttribute = (Attr) currentTreeElementAttrs.getNamedItem(templateTreeAttr.getName());
+					if (currentTreeAttribute == null ||
+							!templateTreeAttr.getValue().trim().equals(currentTreeAttribute.getValue().trim())) {
+						return true;
+					}
 				}
 			}
 		}
