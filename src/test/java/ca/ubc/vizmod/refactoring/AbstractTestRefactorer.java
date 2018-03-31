@@ -8,50 +8,38 @@ import ca.ubc.vizmod.util.DocumentUtil;
 import ca.ubc.vizmod.util.IOUtil;
 import org.junit.After;
 import org.w3c.dom.Document;
+import org.w3c.dom.DocumentType;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.List;
 
-public abstract class AbstractTestRefactorer {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
-    private AbstractBrowser browser;
+public abstract class AbstractTestRefactorer {
 
     protected abstract String getTestsPath();
 
-    private static String getResourcesPath(String resourceFileName) {
-        ClassLoader classLoader = TestRefactorerToyTests.class.getClassLoader();
-        URL testWebsitesURL = classLoader.getResource(resourceFileName);
-        try {
-            String decodedURL = URLDecoder.decode(testWebsitesURL.getPath().toString(), "UTF-8");
-            if (!decodedURL.endsWith("/")) {
-                decodedURL += "/";
-            }
-            return decodedURL;
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-        }
-        return "";
-    }
-
-    private void initializeBrowser(String htmlFile, boolean headless) {
-        browser = ChromeBrowser.getForFile(getTestsPath() + htmlFile, headless);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-//        if (null != browser) {
-//			browser.close();
-//		}
+    private AbstractBrowser initializeBrowser(String htmlFile, boolean headless) {
+        return ChromeBrowser.getForFile(getTestsPath() + htmlFile, headless);
     }
 
     protected void refactor(String subjectName, String componentName, List<String> parentNodeXPaths, String refactoredNameSuffix) {
 
-        initializeBrowser(subjectName, false);
+        AbstractBrowser browserBefore = initializeBrowser(subjectName, false);
+
+        try {
+            Thread.sleep(4000); // Give some time to the browser
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
 
         UIComponentRefactorer uiComponentRefactorer =
-                new UIComponentRefactorer(browser, parentNodeXPaths, componentName);
+                new UIComponentRefactorer(browserBefore, parentNodeXPaths, componentName);
 
         Document newDocument = uiComponentRefactorer.refactor(new ReactAdaptingStrategy());
 
@@ -61,7 +49,33 @@ public abstract class AbstractTestRefactorer {
 
         IOUtil.writeStringToFile(elementString, getTestsPath() + refactoredFile);
 
-        initializeBrowser(refactoredFile, false);
+        AbstractBrowser browserAfter = initializeBrowser(refactoredFile, false);
+
+        domTest(browserBefore, browserAfter, parentNodeXPaths);
+
+        //visualTest();
+
+        //computeSavings(uiComponentRefactorer);
 
     }
+
+    private void domTest(AbstractBrowser browserBefore, AbstractBrowser browserAfter, List<String> parentNodeXPaths) {
+
+        Document documentBefore = DocumentUtil.toDocument(browserBefore.getDOM());
+        Document documentAfter = DocumentUtil.toDocument(browserAfter.getDOM());
+
+        for (String parentNodeXPath : parentNodeXPaths) {
+            NodeList nodeBefore = DocumentUtil.queryDocument(documentBefore, parentNodeXPath);
+            NodeList nodeAfter = DocumentUtil.queryDocument(documentAfter, parentNodeXPath);
+            if (nodeBefore.getLength() != nodeAfter.getLength()) {
+                String message = String.format("Elements pointed by %s are different in number", parentNodeXPath);
+                fail(message);
+            } else if (nodeBefore.getLength() == 1 && nodeAfter.getLength() == 1) {
+                String newickBefore = DocumentUtil.newick(nodeBefore.item(0));
+                String newickAfter = DocumentUtil.newick(nodeAfter.item(0));
+                assertEquals(newickBefore, newickAfter);
+            }
+        }
+    }
+
 }

@@ -12,7 +12,7 @@ public class ResourcesUtil {
 
     public static String readResourceFileToString(String path) {
         try {
-            ClassLoader classLoader = IOUtil.class.getClassLoader();
+            ClassLoader classLoader = ResourcesUtil.class.getClassLoader();
             File file = new File(classLoader.getResource(path).toURI().getPath());
             return new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
         } catch (URISyntaxException uriSyntaxException) {

@@ -128,7 +128,7 @@ public final class DocumentUtil {
 			return element.getTagName();
 		} else if (node instanceof CharacterData) {
 			CharacterData characterData = (CharacterData) node;
-			return characterData.getTextContent();
+			return characterData.getTextContent().trim();
 		} else {
 			LOGGER.warn("I don't know what to do with {}", node.getClass());
 			return "";
@@ -178,24 +178,43 @@ public final class DocumentUtil {
 		}
 	}
 	
-	public static String newick(Node root, boolean leaves) {
+	public static String newick(Node root) {
 		StringBuilder toReturn = new StringBuilder();
-		if (leaves || root.hasChildNodes()) { // Don't go for leaf nodes if not needed
-			NodeList childNodes = root.getChildNodes();
+		if (root.hasChildNodes()) {
 			toReturn.append("(");
+			NodeList childNodes = root.getChildNodes();
+			int numberOfNonEmptyNodes = getNumberOfNonEmptyNodes(childNodes);
+			int commasAdded = 0;
 			for (int i = 0; i < childNodes.getLength(); i++) {
 				Node child = childNodes.item(i);
-				toReturn.append(newick(child, leaves));
-				if (child.hasChildNodes() && i < childNodes.getLength() - 2) {
-					toReturn.append(",");
+				if (!isEmptyTextNode(child)) {
+					toReturn.append(newick(child));
+					if (commasAdded < numberOfNonEmptyNodes - 1) {
+						toReturn.append(",");
+						commasAdded++;
+					}
 				}
 			}
 			toReturn.append(")");
-			toReturn.append(DocumentUtil.nodeString(root));
 		}
+		toReturn.append(DocumentUtil.nodeString(root));
 		return toReturn.toString();
 	}
-	
+	private static int getNumberOfNonEmptyNodes(NodeList childNodes) {
+		int nonEmptyNodes = 0;
+		for (int i = 0; i < childNodes.getLength(); i++) {
+			Node node = childNodes.item(i);
+			if (!isEmptyTextNode(node)) {
+				nonEmptyNodes++;
+			}
+		}
+		return nonEmptyNodes;
+	}
+
+	private static boolean isEmptyTextNode(Node node) {
+		return node instanceof Text && "".equals(((Text)node).getTextContent().trim());
+	}
+
 	public static List<Node> dfs(Node root) {
 		return dfs(root, true);
 	}
@@ -248,15 +267,7 @@ public final class DocumentUtil {
 		}
 		return toReturn;
 	}
-	
-	public static String stringify(List<Node> nodes) {
-		StringBuilder builder = new StringBuilder();
-		for (Node node : nodes) {
-			builder.append(nodeString(node));
-		}
-		return builder.toString();
-	}
-	
+
 	public static NodeList queryDocument(Document doc, String XPath) {
 		try {
 			XPath xPathObj = XPathFactory.newInstance().newXPath();
