@@ -14,10 +14,7 @@ import org.apache.html.dom.HTMLScriptElementImpl;
 import org.apache.xerces.dom.TextImpl;
 import org.jsoup.nodes.Attribute;
 import org.jsoup.nodes.Element;
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import org.w3c.dom.NamedNodeMap;
-import org.w3c.dom.Node;
+import org.w3c.dom.*;
 import org.w3c.dom.html.HTMLElement;
 import org.w3c.dom.html.HTMLScriptElement;
 
@@ -228,8 +225,8 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
      * @return
      */
     private String getNodeStringForReact(Node node, boolean quoteStringNodes) {
-        if (quoteStringNodes && node instanceof TextImpl) {
-            TextImpl textNode = (TextImpl) node;
+        if (quoteStringNodes && node instanceof Text) {
+            Text textNode = (Text) node;
             String trimmedContent = textNode.getTextContent().trim();
             if (trimmedContent.startsWith("{") && trimmedContent.endsWith("}")) {
                 // JS Object Literals do not need double quotes
@@ -324,7 +321,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                             if ("style".equals(attributeKey)) {
                                 valueForThisKeyAndTree = convertStyleToJSObject(valueForThisKeyAndTree);
                             }
-                            TextImpl placeHolderForValue = new TextImpl(newDocument, escapeValueForJSObject(valueForThisKeyAndTree));
+                            Text placeHolderForValue = new TextImpl(newDocument, escapeValueForJSObject(valueForThisKeyAndTree));
                             parameterizedTrees.put(i, placeHolderForValue);
                         }
                         // The corresponding attribute would be a parameter
@@ -340,8 +337,8 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                         String originalNodeXPath = correspondingOriginalNodesXPaths.get(i);
                         Node originalNode = DocumentUtil.queryDocument(newDocument, originalNodeXPath).item(0);
                         Node newNode = originalNode.cloneNode(true);
-                        if (newNode instanceof TextImpl) {
-                            newNode = escapeTextNodeForReactObject((TextImpl) newNode);
+                        if (newNode instanceof Text) {
+                            newNode = escapeTextNodeForReactObject((Text) newNode);
                         }
                         parameterizedTrees.put(i, newNode);
                     }
@@ -383,7 +380,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
     /**
      * Escapes a text node's value to put in JS object
      */
-    private Node escapeTextNodeForReactObject(TextImpl textNode) {
+    private Node escapeTextNodeForReactObject(Text textNode) {
         String wholeText = textNode.getWholeText();
         textNode.setTextContent(escapeValueForJSObject(wholeText));
         return  textNode;
