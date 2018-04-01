@@ -1,6 +1,5 @@
 package ca.ubc.vizmod.util;
 
-import org.apache.xerces.dom.TextImpl;
 import org.cyberneko.html.parsers.DOMParser;
 import org.jsoup.Jsoup;
 import org.slf4j.Logger;
@@ -158,7 +157,7 @@ public final class DocumentUtil {
 	}
 
 	public static String getElementXHTMLString(Node node, Consumer<org.jsoup.nodes.Element> elementActionConsumer) {
-		if (node instanceof TextImpl) {
+		if (node instanceof Text) {
 			return node.getTextContent();
 		} else {
 			String html = getElementString(node); // Serialize to HTML
@@ -256,7 +255,7 @@ public final class DocumentUtil {
 		queue.add(root);
 		while (!queue.isEmpty()) {
 			Node node = queue.remove();
-			if (!(node instanceof TextImpl) || (!onlyTextNodesWithData || !"".equals(((TextImpl)node).getTextContent().trim()))) {
+			if (!(node instanceof Text) || (!onlyTextNodesWithData || !"".equals(node.getTextContent().trim()))) {
 				toReturn.add(node);
 				NodeList childNodes = node.getChildNodes();
 				for (int i = 0; i < childNodes.getLength(); i++) {
