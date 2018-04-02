@@ -130,6 +130,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
         HTMLScriptElement reactComponentJSElement = new HTMLScriptElementImpl(newDocument, "script");
         reactComponentJSElement.setType("text/babel"); // Necessary for Babel scripts, since one might not support ES6.
         reactComponentJSElement.setText(reactComponentText);
+        markHTMLElementAsAddedByVizMod(reactComponentJSElement);
         newDocument.getElementsByTagName("head").item(0).appendChild(reactComponentJSElement);
 
         return newDocument;
@@ -474,6 +475,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
         for (String jsFile : REACT_JS_FILES) {
             HTMLScriptElement jsScript = new HTMLScriptElementImpl(document, "script");
             jsScript.setSrc(jsFile);
+            markHTMLElementAsAddedByVizMod(jsScript);
             headElement.appendChild(jsScript);
         }
 

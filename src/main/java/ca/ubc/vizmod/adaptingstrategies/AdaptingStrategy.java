@@ -2,6 +2,7 @@ package ca.ubc.vizmod.adaptingstrategies;
 
 import ca.ubc.vizmod.model.UIComponent;
 import org.w3c.dom.Document;
+import org.w3c.dom.html.HTMLElement;
 
 public abstract class AdaptingStrategy {
 
@@ -16,5 +17,9 @@ public abstract class AdaptingStrategy {
      * @return True if the {@link AdaptingStrategy} directly supports parameterization of attributes
      */
     public abstract boolean supportsAttributeParameterization();
+
+    public void markHTMLElementAsAddedByVizMod(HTMLElement element) {
+        element.setAttribute("data", "VizMod");
+    }
 
 }
