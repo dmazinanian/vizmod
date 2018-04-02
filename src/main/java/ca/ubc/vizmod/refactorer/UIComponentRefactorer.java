@@ -246,6 +246,10 @@ public class UIComponentRefactorer {
 		return numberOfNodes;
 	}
 
+	public Document getOriginalDocument() {
+		return originalDocument;
+	}
+
 	private void replaceDocumentBodyInTheBrowser(Document document) {
 		String body = DocumentUtil.getElementString(document.getElementsByTagName("body").item(0));
 		String bodyEscaped = body.replace("\"", "\\\"").replace("\n", "\\n");
