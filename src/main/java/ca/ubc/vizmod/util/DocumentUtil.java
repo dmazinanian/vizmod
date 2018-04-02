@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.CharacterData;
 import org.w3c.dom.*;
+import org.w3c.dom.html.HTMLDocument;
 import org.w3c.dom.html.HTMLElement;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -122,7 +123,10 @@ public final class DocumentUtil {
 	}
 	
 	public static String nodeString(Node node) {
-		if (node instanceof Element) {
+		if (node instanceof HTMLDocument) {
+			HTMLDocument htmlDocument = (HTMLDocument) node;
+			return htmlDocument.getNodeName();
+		} else if (node instanceof Element) {
 			Element element = (Element) node;
 			return element.getTagName();
 		} else if (node instanceof CharacterData) {
