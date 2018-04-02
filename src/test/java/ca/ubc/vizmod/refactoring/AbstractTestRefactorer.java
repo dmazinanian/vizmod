@@ -6,10 +6,17 @@ import ca.ubc.vizmod.browser.ChromeBrowser;
 import ca.ubc.vizmod.refactorer.UIComponentRefactorer;
 import ca.ubc.vizmod.util.DocumentUtil;
 import ca.ubc.vizmod.util.IOUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.w3c.dom.Attr;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
+import org.w3c.dom.html.HTMLElement;
+import org.w3c.dom.html.HTMLScriptElement;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -17,7 +24,9 @@ import static org.junit.Assert.fail;
 
 public abstract class AbstractTestRefactorer {
 
-    final int BROWSER_WAIT_TIME_AFTER_INIT = 3000;
+    private static final int BROWSER_WAIT_TIME_AFTER_INIT = 5000;
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractTestRefactorer.class);
 
     protected abstract String getTestsPath();
 
@@ -29,11 +38,7 @@ public abstract class AbstractTestRefactorer {
 
         AbstractBrowser browserBefore = initializeBrowser(subjectName, false);
 
-        try {
-            Thread.sleep(BROWSER_WAIT_TIME_AFTER_INIT); // Give some time to the browser
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        sleep();
 
         UIComponentRefactorer uiComponentRefactorer =
                 new UIComponentRefactorer(browserBefore, parentNodeXPaths, componentName);
@@ -48,13 +53,60 @@ public abstract class AbstractTestRefactorer {
 
         AbstractBrowser browserAfter = initializeBrowser(refactoredFile, false);
 
-        //domTest(browserBefore, browserAfter, parentNodeXPaths);
+        sleep();
 
-        fullDOMTest(browserBefore, browserAfter);
+        domTest(browserBefore, browserAfter, parentNodeXPaths);
+
+        //fullDOMTest(browserBefore, browserAfter);
 
         //visualTest();
 
-        //computeSavings(uiComponentRefactorer);
+        double savingPercent = computeSavingsPercents(uiComponentRefactorer.getOriginalDocument(),
+                    newDocument,
+                    parentNodeXPaths,
+                    componentName);
+
+        LOGGER.info("Savings: {}%", Math.round(savingPercent * 100 * 100) / 100.00);
+
+    }
+
+    protected void sleep() {
+        try {
+            Thread.sleep(BROWSER_WAIT_TIME_AFTER_INIT);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private double computeSavingsPercents(Document originalDocument, Document newDocument, List<String> rootXPaths, String componentName) {
+
+        StringBuilder builder = new StringBuilder();
+        for (String xpath : rootXPaths) {
+            Node node = DocumentUtil.queryDocument(originalDocument, xpath).item(0);
+            builder.append(DocumentUtil.getElementString(node));
+        }
+        int repetitionBytes = builder.toString().getBytes(StandardCharsets.UTF_8).length;
+
+        int jsSize = 0;
+        int componentCustomElements = 0;
+
+        NodeList scripts = newDocument.getElementsByTagName("SCRIPT");
+        for (int i = 0; i < scripts.getLength(); i++) {
+            HTMLScriptElement scriptElement = (HTMLScriptElement) scripts.item(i);
+            if ("text/babel".equals(scriptElement.getType())) {
+                jsSize = scriptElement.getTextContent().getBytes(StandardCharsets.UTF_8).length;
+                break;
+            }
+        }
+
+        NodeList customElements = newDocument.getElementsByTagName(componentName);
+        for (int i = 0; i < customElements.getLength(); i++) {
+            HTMLElement customElement = (HTMLElement) customElements.item(i);
+            String nodeString = DocumentUtil.getElementString(customElement);
+            componentCustomElements += nodeString.getBytes(StandardCharsets.UTF_8).length;
+        }
+
+        return (double)(repetitionBytes - (jsSize + componentCustomElements)) / repetitionBytes;
 
     }
 
@@ -82,9 +134,10 @@ public abstract class AbstractTestRefactorer {
         Document documentBefore = DocumentUtil.toDocument(browserBefore.getDOM());
         Document documentAfter = DocumentUtil.toDocument(browserAfter.getDOM());
 
-        Document documentAfterRemovedUnnecessaryNodes = removeUnnecessaryNodes(documentBefore);
-        String newickBefore = DocumentUtil.newick(documentBefore);
-        String newickAfter = DocumentUtil.newick(documentAfterRemovedUnnecessaryNodes);
+        Document documentAfterRemovedUnnecessaryNodes = removeUnnecessaryNodes(documentAfter);
+
+        String newickBefore = DocumentUtil.newick(documentBefore.getElementsByTagName("body").item(0));
+        String newickAfter = DocumentUtil.newick(documentAfterRemovedUnnecessaryNodes.getElementsByTagName("body").item(0));
 
         assertEquals(newickBefore, newickAfter);
 
@@ -94,13 +147,17 @@ public abstract class AbstractTestRefactorer {
 
         Document newDocument = (Document) originalDocument.cloneNode(true);
 
-        NodeList scripts = newDocument.getElementsByTagName("script");
+        List<HTMLScriptElement> toRemove = new ArrayList<>();
+
+        NodeList scripts = newDocument.getElementsByTagName("SCRIPT");
         for (int i = 0; i < scripts.getLength(); i++) {
-            Node script = scripts.item(i);
-            if ("VizMod".equals(script.getAttributes().getNamedItem("data"))) {
-                script.getParentNode().removeChild(script);
+            HTMLScriptElement script = (HTMLScriptElement) scripts.item(i);
+            Node attr = script.getAttributes().getNamedItem("data");
+            if (null != attr && "VizMod".equals(((Attr)attr).getValue())) {
+                toRemove.add(script);
             }
         }
+        toRemove.forEach(node -> node.getParentNode().removeChild(node));
 
         return newDocument;
 
