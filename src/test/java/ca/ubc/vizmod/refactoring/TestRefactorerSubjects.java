@@ -24,7 +24,7 @@ public class TestRefactorerSubjects extends AbstractTestRefactorer {
                 "//*[@id=\"testimonial\"]/DIV/DIV[2]/DIV[2]/DIV[2]"
         );
 
-        refactor(subjectName, "ReactComponent1", parentNodeXPaths, "refactored1");
+        refactor(subjectName, "RC1", parentNodeXPaths, "refactored1");
 
     }
 
@@ -48,7 +48,7 @@ public class TestRefactorerSubjects extends AbstractTestRefactorer {
                 "//*[@id=\"portfolio\"]/DIV/DIV[3]/DIV/DIV[12]"
         );
 
-        refactor(subjectName, "ReactComponent2", parentNodeXPaths, "refactored2");
+        refactor(subjectName, "RC2", parentNodeXPaths, "refactored2");
 
     }
 
@@ -63,7 +63,7 @@ public class TestRefactorerSubjects extends AbstractTestRefactorer {
                 "/HTML/BODY/SECTION[3]/DIV/DIV/DIV[3]"
         );
 
-       refactor(subjectName, "ReactComponent1", parentNodeXPaths, "refactored1");
+       refactor(subjectName, "RC1", parentNodeXPaths, "refactored1");
 
     }
 
@@ -81,7 +81,7 @@ public class TestRefactorerSubjects extends AbstractTestRefactorer {
                 "//*[@id=\"feature\"]/DIV/DIV[2]/DIV[6]"
         );
 
-        refactor(subjectName, "ReactComponent2", parentNodeXPaths, "refactored2");
+        refactor(subjectName, "RC2", parentNodeXPaths, "refactored2");
 
     }
 
@@ -96,7 +96,7 @@ public class TestRefactorerSubjects extends AbstractTestRefactorer {
                 "//*[@id=\"price\"]/DIV/DIV[2]/DIV[3]"
         );
 
-        refactor(subjectName, "ReactComponent3", parentNodeXPaths, "refactored3");
+        refactor(subjectName, "RC3", parentNodeXPaths, "refactored3");
 
     }
 
@@ -111,7 +111,7 @@ public class TestRefactorerSubjects extends AbstractTestRefactorer {
                 "//*[@id=\"blog\"]/DIV/DIV[2]/DIV[3]"
         );
 
-        refactor(subjectName, "ReactComponent4", parentNodeXPaths, "refactored4");
+        refactor(subjectName, "RC4", parentNodeXPaths, "refactored4");
 
     }
 
@@ -127,7 +127,7 @@ public class TestRefactorerSubjects extends AbstractTestRefactorer {
 
         );
 
-        refactor(subjectName, "ReactComponent1", parentNodeXPaths, "refactored1");
+        refactor(subjectName, "RC1", parentNodeXPaths, "refactored1");
 
     }
 
@@ -142,7 +142,7 @@ public class TestRefactorerSubjects extends AbstractTestRefactorer {
                 "/HTML/BODY/SECTION[5]/DIV/DIV[2]/DIV[3]"
         );
 
-        refactor(subjectName, "ReactComponent2", parentNodeXPaths, "refactored2");
+        refactor(subjectName, "RC2", parentNodeXPaths, "refactored2");
 
     }
 
@@ -158,7 +158,7 @@ public class TestRefactorerSubjects extends AbstractTestRefactorer {
 
         );
 
-        refactor(subjectName, "ReactComponent1", parentNodeXPaths, "refactored1");
+        refactor(subjectName, "RC1", parentNodeXPaths, "refactored1");
 
     }
 
@@ -179,7 +179,7 @@ public class TestRefactorerSubjects extends AbstractTestRefactorer {
 
         );
 
-        refactor(subjectName, "ReactComponent2", parentNodeXPaths, "refactored2");
+        refactor(subjectName, "RC2", parentNodeXPaths, "refactored2");
 
     }
 
@@ -196,7 +196,7 @@ public class TestRefactorerSubjects extends AbstractTestRefactorer {
                 "/HTML/BODY/SECTION[2]/DIV/DIV[2]/DIV[3]/DIV[2]/DIV/DIV/DIV"
         );
 
-        refactor(subjectName, "ReactComponent1", parentNodeXPaths, "refactored1");
+        refactor(subjectName, "RC1", parentNodeXPaths, "refactored1");
 
     }
 
@@ -211,7 +211,7 @@ public class TestRefactorerSubjects extends AbstractTestRefactorer {
                 "/HTML/BODY/SECTION[3]/DIV/DIV[2]/DIV[3]"
         );
 
-        refactor(subjectName, "ReactComponent2", parentNodeXPaths, "refactored2");
+        refactor(subjectName, "RC2", parentNodeXPaths, "refactored2");
 
     }
 

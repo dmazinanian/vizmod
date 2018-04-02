@@ -49,7 +49,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
      */
     private static final String REACT_COMPONENT_JS =
             "ca/ubc/vizmod/adaptingstrategies/react/react-component-template.jsx";
-    private static final String PARAMETERIZED_TREES_JS_OBJECT_NAME = "parameterizedTrees";
+    private static final String PARAMETERIZED_TREES_JS_OBJECT_NAME = "p";
     private static final String REACT_COMPONENT_TEMPLATE_CLASS_NAME = "${componentClassName}";
     private static final String RECT_COMPONENT_TEMPLATE_BODY = "${componentBody}";
     private static final String REACT_COMPONENT_ATTRIBUTES = "${componentParameterizedTrees}";
@@ -111,7 +111,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
             }
             parameterizedTreeStringArrayValues.append("}");
             if (originalRootNodeIndex < originalNodesXPaths.size() - 1) {
-                parameterizedTreeStringArrayValues.append(",\n");
+                parameterizedTreeStringArrayValues.append(",");
             }
         }
 
