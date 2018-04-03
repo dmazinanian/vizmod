@@ -333,6 +333,15 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
                 } else {
                     // The entire node (and its subtree) should be parameterized
                     String parameterName = getParameterName(parameterizedTrees);
+                    /*
+                     * When this element is the common parent for all the subtrees, yet it is parameterized,
+                     * we should remove the start and ending brackets from the parameter name
+                     * since otherwise the code will be like Render({this.props.X}), which is caught as a syntax
+                     * error.
+                     */
+                    if (null == htmlElementRootNode) {
+                        parameterName = parameterName.substring(1, parameterName.length() - 1);
+                    }
                     unifyingNode = new TextImpl(newDocument, parameterName);
                     for (int i = 0; i < correspondingOriginalNodesXPaths.size(); i++) {
                         String originalNodeXPath = correspondingOriginalNodesXPaths.get(i);
