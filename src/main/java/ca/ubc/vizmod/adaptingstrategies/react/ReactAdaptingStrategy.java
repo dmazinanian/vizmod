@@ -482,12 +482,25 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
 
         Node headElement = document.getElementsByTagName("head").item(0);
         for (String jsFile : REACT_JS_FILES) {
-            HTMLScriptElement jsScript = new HTMLScriptElementImpl(document, "script");
-            jsScript.setSrc(jsFile);
-            markHTMLElementAsAddedByVizMod(jsScript);
-            headElement.appendChild(jsScript);
+            if (scriptDoesNotExist(document, jsFile)) {
+                HTMLScriptElement jsScript = new HTMLScriptElementImpl(document, "script");
+                jsScript.setSrc(jsFile);
+                markHTMLElementAsAddedByVizMod(jsScript);
+                headElement.appendChild(jsScript);
+            }
         }
 
+    }
+
+    private boolean scriptDoesNotExist(Document document, String jsFile) {
+        NodeList allScripts = document.getElementsByTagName("script");
+        for (int i = 0; i < allScripts.getLength(); i++) {
+            HTMLScriptElement script = (HTMLScriptElement) allScripts.item(i);
+            if (jsFile.equals(script.getSrc().trim())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
