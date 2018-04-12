@@ -3,6 +3,7 @@ package ca.ubc.vizmod.refactoring;
 import ca.ubc.vizmod.adaptingstrategies.react.ReactAdaptingStrategy;
 import ca.ubc.vizmod.browser.AbstractBrowser;
 import ca.ubc.vizmod.browser.ChromeBrowser;
+import ca.ubc.vizmod.model.UIComponent;
 import ca.ubc.vizmod.refactorer.UIComponentRefactorer;
 import ca.ubc.vizmod.util.DocumentUtil;
 import ca.ubc.vizmod.util.IOUtil;
@@ -34,10 +35,44 @@ public abstract class AbstractTestRefactorer {
         return ChromeBrowser.getForFile(getTestsPath() + htmlFile, headless);
     }
 
+    protected void refactor(String subjectName, List<List<String>> parentNodeXPaths) {
+
+        AbstractBrowser browserBefore = initializeBrowser(subjectName, false);
+        sleep();
+
+        Document documentBefore = DocumentUtil.toDocument(browserBefore.getDOM());
+        HTMLElement body = (HTMLElement) documentBefore.getElementsByTagName("body").item(0);
+
+        int fullSizeBodyBeforeRefactoring = getBytesCount(DocumentUtil.getElementString(body));
+
+        int repeatedBytes = 0;
+
+        int totalAddedBytes = 0;
+
+        for (int subtreesIndex = 0; subtreesIndex < parentNodeXPaths.size(); subtreesIndex++) {
+            String componentName = "RC" + subtreesIndex;
+            List<String> rootNodeXPaths = parentNodeXPaths.get(subtreesIndex);
+            UIComponentRefactorer uiComponentRefactorer =
+                    new UIComponentRefactorer(browserBefore, rootNodeXPaths, componentName);
+            Document newDocument = uiComponentRefactorer.refactor(new ReactAdaptingStrategy());
+            repeatedBytes += getRepetitionBytes(uiComponentRefactorer.getOriginalDocument(), rootNodeXPaths);
+            totalAddedBytes += getTotalAddedBytes(newDocument, componentName);
+        }
+
+        int fullBodySizeAfterRefactoring = fullSizeBodyBeforeRefactoring - repeatedBytes + totalAddedBytes;
+        double savingRatio = 1.00 - (double) fullBodySizeAfterRefactoring / fullSizeBodyBeforeRefactoring;
+
+        LOGGER.info("Total body size before refactoring: {}", fullSizeBodyBeforeRefactoring);
+        LOGGER.info("Total repeated bytes (removed): {}", repeatedBytes);
+        LOGGER.info("Total added bytes: {}", totalAddedBytes);
+        LOGGER.info("Total body size after refacoring: {}", fullBodySizeAfterRefactoring);
+        LOGGER.info("Savings: {}%", Math.round(savingRatio * 100 * 100) / 100.00);
+    }
+
     protected void refactor(String subjectName, String componentName, List<String> parentNodeXPaths, String refactoredNameSuffix) {
 
         AbstractBrowser browserBefore = initializeBrowser(subjectName, false);
-
+        //System.out.println(DocumentUtil.bfs(DocumentUtil.toDocument(browserBefore.getDOM()), false).size());
         sleep();
 
         UIComponentRefactorer uiComponentRefactorer =
@@ -80,13 +115,15 @@ public abstract class AbstractTestRefactorer {
 
     private double computeSavingsPercents(Document originalDocument, Document newDocument, List<String> rootXPaths, String componentName) {
 
-        StringBuilder builder = new StringBuilder();
-        for (String xpath : rootXPaths) {
-            Node node = DocumentUtil.queryDocument(originalDocument, xpath).item(0);
-            builder.append(DocumentUtil.getElementString(node));
-        }
-        int repetitionBytes = builder.toString().getBytes(StandardCharsets.UTF_8).length;
+        int repetitionBytes = getRepetitionBytes(originalDocument, rootXPaths);
 
+        int totalAddedBytes = getTotalAddedBytes(newDocument, componentName);
+
+        return (double)(repetitionBytes - totalAddedBytes) / repetitionBytes;
+
+    }
+
+    private int getTotalAddedBytes(Document newDocument, String componentName) {
         int jsSize = 0;
         int componentCustomElements = 0;
 
@@ -94,7 +131,7 @@ public abstract class AbstractTestRefactorer {
         for (int i = 0; i < scripts.getLength(); i++) {
             HTMLScriptElement scriptElement = (HTMLScriptElement) scripts.item(i);
             if ("text/babel".equals(scriptElement.getType())) {
-                jsSize = scriptElement.getTextContent().getBytes(StandardCharsets.UTF_8).length;
+                jsSize = getBytesCount(scriptElement.getTextContent());
                 break;
             }
         }
@@ -103,11 +140,23 @@ public abstract class AbstractTestRefactorer {
         for (int i = 0; i < customElements.getLength(); i++) {
             HTMLElement customElement = (HTMLElement) customElements.item(i);
             String nodeString = DocumentUtil.getElementString(customElement);
-            componentCustomElements += nodeString.getBytes(StandardCharsets.UTF_8).length;
+            componentCustomElements += getBytesCount(nodeString);
         }
 
-        return (double)(repetitionBytes - (jsSize + componentCustomElements)) / repetitionBytes;
+        return jsSize + componentCustomElements;
+    }
 
+    private int getRepetitionBytes(Document originalDocument, List<String> rootXPaths) {
+        StringBuilder builder = new StringBuilder();
+        for (String xpath : rootXPaths) {
+            Node node = DocumentUtil.queryDocument(originalDocument, xpath).item(0);
+            builder.append(DocumentUtil.getElementString(node));
+        }
+        return getBytesCount(builder.toString());
+    }
+
+    private int getBytesCount(String string) {
+        return string.getBytes(StandardCharsets.UTF_8).length;
     }
 
     private void domTest(AbstractBrowser browserBefore, AbstractBrowser browserAfter, List<String> parentNodeXPaths) {
