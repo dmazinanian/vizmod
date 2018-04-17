@@ -5,6 +5,7 @@ import ca.ubc.vizmod.adaptingstrategies.AdaptingStrategy;
 import ca.ubc.vizmod.adaptingstrategies.webcomponents.HTMLCustomElement;
 import ca.ubc.vizmod.model.*;
 import ca.ubc.vizmod.model.css.CSSUtil;
+import ca.ubc.vizmod.refactorer.RefactoringResult;
 import ca.ubc.vizmod.util.DocumentUtil;
 import ca.ubc.vizmod.util.ResourcesUtil;
 import org.apache.commons.collections4.MultiValuedMap;
@@ -55,7 +56,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
     private static final String REACT_COMPONENT_ATTRIBUTES = "${componentParameterizedTrees}";
 
     @Override
-    public Document adapt(UIComponent uiComponent) {
+    public RefactoringResult adapt(UIComponent uiComponent) {
 
         HTMLDocumentImpl newDocument = (HTMLDocumentImpl) uiComponent.getOriginalDocument().cloneNode(true);
 
@@ -83,8 +84,12 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
          * This holds an array of objects, each object pertaining to an original element being parameterized.
          */
         StringBuilder parameterizedTreeStringArrayValues = new StringBuilder();
-
+        List<List<String>> parameterizedNodesStrings = new ArrayList<>();
         for (int originalRootNodeIndex = 0; originalRootNodeIndex < originalNodesXPaths.size(); originalRootNodeIndex++) {
+
+            List<String> parameterizedArgumentsString = new ArrayList<>();
+            parameterizedNodesStrings.add(parameterizedArgumentsString);
+
             HTMLElement originalNode = (HTMLElement) originalRootNodes.get(originalRootNodeIndex);
             // The original node is replaced by a custom component, and acts as a placeholder for the
             // component's body (used in the React's Render() function)
@@ -98,13 +103,15 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
             for (int parameterizedNodeIndex = 0;
                  parameterizedNodeIndex < parameterizedTreesRootNodes.size();
                  parameterizedNodeIndex++) {
+                String argumentString =
+                        getNodeStringForReact(parameterizedTreesRootNodes.get(parameterizedNodeIndex), true);
+                parameterizedArgumentsString.add(argumentString);
                 parameterizedTreeStringArrayValues
                         .append("\"")
                         .append(PARAMETERIZED_TREES_JS_OBJECT_NAME + parameterizedNodeIndex)
                         .append("\"")
                         .append(":")
-                        .append(getNodeStringForReact(
-                                    parameterizedTreesRootNodes.get(parameterizedNodeIndex), true));
+                        .append(argumentString);
                 if (parameterizedNodeIndex < parameterizedTreesRootNodes.size() - 1) {
                     parameterizedTreeStringArrayValues.append(",");
                 }
@@ -133,7 +140,7 @@ public class ReactAdaptingStrategy extends AdaptingStrategy {
         markHTMLElementAsAddedByVizMod(reactComponentJSElement);
         newDocument.getElementsByTagName("head").item(0).appendChild(reactComponentJSElement);
 
-        return newDocument;
+        return new RefactoringResult(newDocument, reactComponentBody, parameterizedNodesStrings);
     }
 
     /**

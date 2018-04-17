@@ -5,6 +5,7 @@ import ca.ubc.vizmod.model.NonParameterizedUIComponentElement;
 import ca.ubc.vizmod.model.ParameterizedUIComponentElement;
 import ca.ubc.vizmod.model.UIComponent;
 import ca.ubc.vizmod.model.UIComponentElement;
+import ca.ubc.vizmod.refactorer.RefactoringResult;
 import ca.ubc.vizmod.util.DocumentUtil;
 import ca.ubc.vizmod.util.ResourcesUtil;
 import org.apache.html.dom.HTMLDocumentImpl;
@@ -23,7 +24,7 @@ public class WebComponentsAdaptingStrategy extends AdaptingStrategy {
             "ca/ubc/uicomponentrefactorer/adaptingstrategies/webcomponents/custom-element-register.js";
 
     @Override
-    public Document adapt(UIComponent uiComponent) {
+    public RefactoringResult adapt(UIComponent uiComponent) {
 
         if (uiComponent.getChildren().size() > 1) {
             throw new RuntimeException("Root has more than one child. How come?");
@@ -44,7 +45,7 @@ public class WebComponentsAdaptingStrategy extends AdaptingStrategy {
 
         addWebComponentsJavascript(uiComponent, newDocument, TEMPLATE_ELEMENT_ID);
 
-        return newDocument;
+        return new RefactoringResult(newDocument, "", new ArrayList<>());
 
     }
 

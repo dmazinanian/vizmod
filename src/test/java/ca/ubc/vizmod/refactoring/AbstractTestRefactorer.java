@@ -4,21 +4,20 @@ import ca.ubc.vizmod.adaptingstrategies.react.ReactAdaptingStrategy;
 import ca.ubc.vizmod.browser.AbstractBrowser;
 import ca.ubc.vizmod.browser.ChromeBrowser;
 import ca.ubc.vizmod.model.UIComponent;
+import ca.ubc.vizmod.refactorer.RefactoringResult;
 import ca.ubc.vizmod.refactorer.UIComponentRefactorer;
 import ca.ubc.vizmod.util.DocumentUtil;
 import ca.ubc.vizmod.util.IOUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.Attr;
-import org.w3c.dom.Document;
-import org.w3c.dom.Node;
-import org.w3c.dom.NodeList;
+import org.w3c.dom.*;
 import org.w3c.dom.html.HTMLElement;
 import org.w3c.dom.html.HTMLScriptElement;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -38,6 +37,7 @@ public abstract class AbstractTestRefactorer {
     protected void refactor(String subjectName, List<List<String>> parentNodeXPaths) {
 
         AbstractBrowser browserBefore = initializeBrowser(subjectName, false);
+
         sleep();
 
         Document documentBefore = DocumentUtil.toDocument(browserBefore.getDOM());
@@ -48,37 +48,50 @@ public abstract class AbstractTestRefactorer {
         int repeatedBytes = 0;
 
         int totalAddedBytes = 0;
+        int totalAddedBytesReact = 0;
+
 
         for (int subtreesIndex = 0; subtreesIndex < parentNodeXPaths.size(); subtreesIndex++) {
             String componentName = "RC" + subtreesIndex;
+
             List<String> rootNodeXPaths = parentNodeXPaths.get(subtreesIndex);
+
             UIComponentRefactorer uiComponentRefactorer =
                     new UIComponentRefactorer(browserBefore, rootNodeXPaths, componentName);
-            Document newDocument = uiComponentRefactorer.refactor(new ReactAdaptingStrategy());
+            RefactoringResult refactoringResult = uiComponentRefactorer.refactor(new ReactAdaptingStrategy());
             repeatedBytes += getRepetitionBytes(uiComponentRefactorer.getOriginalDocument(), rootNodeXPaths);
-            totalAddedBytes += getTotalAddedBytes(newDocument, componentName);
+            totalAddedBytes += getTotalAddedBytes(refactoringResult);
+            totalAddedBytesReact += getTotalAddedBytesWithReact(refactoringResult, componentName);
+
         }
 
         int fullBodySizeAfterRefactoring = fullSizeBodyBeforeRefactoring - repeatedBytes + totalAddedBytes;
+        int fullBodySizeAfterRefactoringReact = fullSizeBodyBeforeRefactoring - repeatedBytes + totalAddedBytesReact;
         double savingRatio = 1.00 - (double) fullBodySizeAfterRefactoring / fullSizeBodyBeforeRefactoring;
+        double savingRatioReact = 1.00 - (double) fullBodySizeAfterRefactoringReact / fullSizeBodyBeforeRefactoring;
 
-        LOGGER.info("Total body size before refactoring: {}", fullSizeBodyBeforeRefactoring);
-        LOGGER.info("Total repeated bytes (removed): {}", repeatedBytes);
-        LOGGER.info("Total added bytes: {}", totalAddedBytes);
-        LOGGER.info("Total body size after refacoring: {}", fullBodySizeAfterRefactoring);
+        LOGGER.info("Total body size before refactoring: {}", fullSizeBodyBeforeRefactoring / 1024.00);
+        LOGGER.info("Total repeated bytes (removed): {}", repeatedBytes / 1024.00);
+        LOGGER.info("Total added bytes: {}", totalAddedBytes / 1024.00);
+        LOGGER.info("Total added bytes (React): {}", totalAddedBytesReact / 1024.00);
+        LOGGER.info("Total body size after refacoring: {}", fullBodySizeAfterRefactoring / 1024.00);
+        LOGGER.info("Total body size after refacoring (React): {}", fullBodySizeAfterRefactoringReact / 1024.00);
         LOGGER.info("Savings: {}%", Math.round(savingRatio * 100 * 100) / 100.00);
+        LOGGER.info("Savings (React): {}%", Math.round(savingRatioReact * 100 * 100) / 100.00);
     }
 
     protected void refactor(String subjectName, String componentName, List<String> parentNodeXPaths, String refactoredNameSuffix) {
 
         AbstractBrowser browserBefore = initializeBrowser(subjectName, false);
-        //System.out.println(DocumentUtil.bfs(DocumentUtil.toDocument(browserBefore.getDOM()), false).size());
+
         sleep();
 
         UIComponentRefactorer uiComponentRefactorer =
                 new UIComponentRefactorer(browserBefore, parentNodeXPaths, componentName);
 
-        Document newDocument = uiComponentRefactorer.refactor(new ReactAdaptingStrategy());
+        RefactoringResult refactoringResult = uiComponentRefactorer.refactor(new ReactAdaptingStrategy());
+
+        Document newDocument = refactoringResult.getDocument();
 
         String elementString = DocumentUtil.getElementString(newDocument);
 
@@ -96,10 +109,10 @@ public abstract class AbstractTestRefactorer {
 
         //visualTest();
 
-        double savingPercent = computeSavingsPercents(uiComponentRefactorer.getOriginalDocument(),
-                    newDocument,
-                    parentNodeXPaths,
-                    componentName);
+        double savingPercent = computeSavingsPercents(
+                uiComponentRefactorer.getOriginalDocument(),
+                refactoringResult,
+                parentNodeXPaths, componentName);
 
         LOGGER.info("Savings: {}%", Math.round(savingPercent * 100 * 100) / 100.00);
 
@@ -113,19 +126,36 @@ public abstract class AbstractTestRefactorer {
         }
     }
 
-    private double computeSavingsPercents(Document originalDocument, Document newDocument, List<String> rootXPaths, String componentName) {
+    private double computeSavingsPercents(Document originalDocument, RefactoringResult refactoringResult, List<String> rootXPaths, String componentName) {
 
         int repetitionBytes = getRepetitionBytes(originalDocument, rootXPaths);
 
-        int totalAddedBytes = getTotalAddedBytes(newDocument, componentName);
+        int totalAddedBytes = getTotalAddedBytes(refactoringResult);
+        //int totalAddedBytesReact = getTotalAddedBytesWithReact(refactoringResult, componentName);
 
-        return (double)(repetitionBytes - totalAddedBytes) / repetitionBytes;
+        return (double) (repetitionBytes - totalAddedBytes) / repetitionBytes;
 
     }
 
-    private int getTotalAddedBytes(Document newDocument, String componentName) {
+    private int getTotalAddedBytes(RefactoringResult refactoringResult) {
+
+        int jsSize = getBytesCount(refactoringResult.getComponentBody().replace("this.props.", ""));
+        int componentCustomElements = 0;
+
+        for (List<String> args : refactoringResult.getParameterizedValues()) {
+            for (String arg : args) {
+                componentCustomElements += getBytesCount(arg);
+            }
+        }
+
+        return jsSize + componentCustomElements;
+
+    }
+
+    private int getTotalAddedBytesWithReact(RefactoringResult refactoringResult, String componentName) {
         int jsSize = 0;
         int componentCustomElements = 0;
+        Document newDocument = refactoringResult.getDocument();
 
         NodeList scripts = newDocument.getElementsByTagName("SCRIPT");
         for (int i = 0; i < scripts.getLength(); i++) {
@@ -144,7 +174,9 @@ public abstract class AbstractTestRefactorer {
         }
 
         return jsSize + componentCustomElements;
+
     }
+
 
     private int getRepetitionBytes(Document originalDocument, List<String> rootXPaths) {
         StringBuilder builder = new StringBuilder();
@@ -202,7 +234,7 @@ public abstract class AbstractTestRefactorer {
         for (int i = 0; i < scripts.getLength(); i++) {
             HTMLScriptElement script = (HTMLScriptElement) scripts.item(i);
             Node attr = script.getAttributes().getNamedItem("data");
-            if (null != attr && "VizMod".equals(((Attr)attr).getValue())) {
+            if (null != attr && "VizMod".equals(((Attr) attr).getValue())) {
                 toRemove.add(script);
             }
         }
@@ -211,5 +243,4 @@ public abstract class AbstractTestRefactorer {
         return newDocument;
 
     }
-
 }

@@ -1,7 +1,7 @@
 package ca.ubc.vizmod.adaptingstrategies;
 
 import ca.ubc.vizmod.model.UIComponent;
-import org.w3c.dom.Document;
+import ca.ubc.vizmod.refactorer.RefactoringResult;
 import org.w3c.dom.html.HTMLElement;
 
 public abstract class AdaptingStrategy {
@@ -11,7 +11,7 @@ public abstract class AdaptingStrategy {
      * @param uiComponent
      * @return
      */
-    public abstract Document adapt(UIComponent uiComponent);
+    public abstract RefactoringResult adapt(UIComponent uiComponent);
 
     /**
      * @return True if the {@link AdaptingStrategy} directly supports parameterization of attributes

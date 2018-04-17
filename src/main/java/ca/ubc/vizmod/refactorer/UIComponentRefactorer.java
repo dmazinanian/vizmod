@@ -59,7 +59,7 @@ public class UIComponentRefactorer {
 
 	}
 
-	public Document refactor(AdaptingStrategy adaptingStrategy) {
+	public RefactoringResult refactor(AdaptingStrategy adaptingStrategy) {
 
 		// Keeps all BFSs of all subtrees. BFSs.get(0) == first subtree's nodes in BFS order
 		List<List<Node>> BFSs = new ArrayList<>();
