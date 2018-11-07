@@ -304,4 +304,20 @@ public final class DocumentUtil {
 		}
 		return maxHeight + 1;
 	}
+
+    public static List<Node> getElementByAttributeValue(Node rootNode, String attribute, String value) {
+		List<Node> nodesToReturn = new ArrayList<>();
+		for (Node node : bfs(rootNode, false)) {
+			if (node instanceof HTMLElement) {
+				HTMLElement element = (HTMLElement) node;
+				String attribute1 = element.getAttribute(attribute);
+				System.out.println(attribute1);
+				System.out.println(attribute1.equals(value));
+				if (value.equals(attribute1)) {
+					nodesToReturn.add(node);
+				}
+			}
+		}
+		return nodesToReturn;
+    }
 }

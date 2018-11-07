@@ -1,0 +1,28 @@
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Intellij
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Maven
+*.log
+target/
+release.properties
+pom.xml.releaseBackup
+git.properties
+out/
+
+# Mac
+.DS_Store
+
+# Vi
+*.swp
+
+/bin/
+
+.git/

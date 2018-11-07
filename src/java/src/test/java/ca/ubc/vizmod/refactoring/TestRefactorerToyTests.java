@@ -24,7 +24,7 @@ public class TestRefactorerToyTests extends AbstractTestRefactorer {
 
 	@Override
 	protected String getTestsPath() {
-		return "";
+		return "/Users/davood/Google Drive/Research/Codes/vizmod/src/java/src/test/resources/TestWebsites/";
 	}
 
     @Test

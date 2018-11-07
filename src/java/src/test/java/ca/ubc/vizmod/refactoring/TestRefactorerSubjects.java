@@ -9,7 +9,7 @@ public class TestRefactorerSubjects extends AbstractTestRefactorer {
 
     @Override
     protected String getTestsPath() {
-        return "";
+        return "/Users/davood/Google Drive/Research/Codes/vizmod/test-subjects/";
     }
 
     @Test

@@ -1,0 +1,72 @@
+<HTML><HEAD><META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<SCRIPT type="text/javascript">
+	
+</SCRIPT>
+
+<STYLE>
+tr:nth-child(even) {
+	background-color: #ccc;
+}
+</STYLE>
+
+<SCRIPT src="https://unpkg.com/react@16/umd/react.development.js"></SCRIPT><SCRIPT src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></SCRIPT><SCRIPT src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js"></SCRIPT><SCRIPT type="text/babel">class ReactComponent extends React.Component {
+    render() {
+        return(<div> 
+ <div>
+  A
+ </div> 
+ <div style={{color:'red'}} className={this.props.parameterizedTrees0}>
+  {this.props.parameterizedTrees1}
+ </div> {this.props.parameterizedTrees2} 
+</div>);
+    }
+}
+
+//export default ReactComponent;
+
+let dynamicPropsReactComponent = [{"parameterizedTrees0":"test","parameterizedTrees1":"B","parameterizedTrees2":<div> 
+ <a href="">C</a> 
+</div>},
+{"parameterizedTrees0":"","parameterizedTrees1":"B","parameterizedTrees2":<div> 
+ <a href="">A</a> 
+ <a href="">A</a> 
+ <a href="">A</a> 
+ <a href="">A</a> 
+ <div> 
+  <a href="">C</a> 
+  <a href="">C</a> 
+ </div> 
+</div>},
+{"parameterizedTrees0":"","parameterizedTrees1":"C","parameterizedTrees2":<div> 
+ <div> 
+  <a href="">A</a> 
+  <a href="">C</a> 
+ </div> 
+</div>}]
+
+for (let i = 0; i < dynamicPropsReactComponent.length; i++) {
+    ReactDOM.render(
+        <ReactComponent {...dynamicPropsReactComponent[i]} />,
+        document.getElementById('ReactComponent' + i)
+    );
+}
+
+// Replace custom elements with original root nodes
+for (let i = 0; i < dynamicPropsReactComponent.length; i++) {
+    let customElement = document.getElementById('ReactComponent' + i);
+    customElement.parentNode.replaceChild(customElement.childNodes[0], customElement);
+}</SCRIPT></HEAD><BODY>
+
+	<REACTCOMPONENT id="ReactComponent0"></REACTCOMPONENT>
+
+
+	<REACTCOMPONENT id="ReactComponent1"></REACTCOMPONENT>
+
+	<REACTCOMPONENT id="ReactComponent2"></REACTCOMPONENT>
+
+	
+
+
+
+
+</BODY></HTML>

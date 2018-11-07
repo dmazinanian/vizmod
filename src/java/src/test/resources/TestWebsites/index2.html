@@ -1,0 +1,49 @@
+<html>
+<head>
+  <script type="text/javascript">
+
+    customElements.define('my-tr',
+        class extends HTMLElement {
+            constructor() {
+            super();
+            var template = document
+                .getElementById('tr-template')
+                .content;
+            const shadowRoot = this.attachShadow({mode: 'open'})
+                .appendChild(template.cloneNode(true));
+        }
+    })
+
+  </script>
+
+  <style>
+      tr:nth-child(even) {
+          background-color: #ccc;
+      }
+  </style>
+
+</head>
+
+<body>
+
+    <template id="tr-template">
+        <tr>
+            <td><slot name="s1"></slot></td><td><slot name="s2"></slot></td>
+        </tr>
+    </template>
+    
+    <table>
+        <my-tr><span slot="s1">Cell1</span><span slot="s2">Cell2</span></my-tr>
+        <tr>
+            <td>Cell3</td><td>Cell4</td>
+        </tr>
+        <tr>
+            <td>Cell5</td><td>Cell6</td>
+        </tr>
+        <tr>
+            <td>Cell7</td><td>Cell8</td>
+        </tr>
+
+    </table>
+
+</body>

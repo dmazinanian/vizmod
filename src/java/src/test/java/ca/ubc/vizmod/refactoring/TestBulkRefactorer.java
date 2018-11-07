@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -16,7 +17,7 @@ public class TestBulkRefactorer extends AbstractTestRefactorer {
 
     @Override
     protected String getTestsPath() {
-        return "";
+        return "/Users/davood/Google Drive/Research/Codes/vizmod/test-subjects/";
     }
 
     @Test
@@ -28,6 +29,8 @@ public class TestBulkRefactorer extends AbstractTestRefactorer {
         List<List<String>> parentNodeXPaths = readJSONResultsFile(jsonFile);
 
         refactor(subjectName, parentNodeXPaths);
+
+        List<Object> l = new ArrayList<>();
 
     }
 
@@ -64,6 +67,13 @@ public class TestBulkRefactorer extends AbstractTestRefactorer {
         List<List<String>> parentNodeXPaths = readJSONResultsFile(jsonFile);
 
         refactor(subjectName, parentNodeXPaths);
+
+        Function<Integer, Integer> g = new Function<Integer, Integer>() {
+            @Override
+            public Integer apply(Integer integer) {
+                return null;
+            }
+        }
 
     }
 
